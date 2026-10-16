@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Garibaldo — Prévia dos sprites</title>
+  <style>
+    :root { --bg:#14111f; --card:#1f1b30; --txt:#e9e4ff; --mut:#9a93b8; }
+    body { margin:0; background:var(--bg); color:var(--txt); font-family:system-ui,sans-serif; padding:20px 16px 40px; }
+    h1 { font-size:20px; margin:0 0 4px; } p { color:var(--mut); margin:0 0 18px; font-size:14px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+    .card { background:var(--card); border-radius:10px; padding:10px; text-align:center; }
+    canvas { background:#3a3f55; border-radius:6px; image-rendering:pixelated; width:100%; height:auto; }
+    .name { font-size:13px; margin-top:6px; color:var(--mut); }
+    .scene { background:linear-gradient(#1e1030,#6b2f5e 60%,#f08a4b); border-radius:10px; padding:14px; margin-bottom:18px; text-align:center; }
+    .scene canvas { background:none; max-width:760px; }
+    button { background:#4c7bc4; color:#fff; border:0; border-radius:8px; padding:6px 12px; margin:0 3px; cursor:pointer; font-size:13px; }
+  </style>
+</head>
+<body>
+  <h1>Garibaldo — mago da Guerra Arcana</h1>
+  <p>Arte placeholder gerada por código. Cada cartão é uma animação em loop.</p>
+
+  <div class="scene">
+    <canvas id="demo" width="480" height="200"></canvas>
+    <div style="margin-bottom:8px"><button onclick="setPower('fire')">Fogo</button><button onclick="setPower('ice')">Gelo</button><button onclick="setPower('bolt')">Raio</button></div>
+    <div><button onclick="demo.set('idle')">Parado</button><button onclick="demo.set('run')">Correr</button><button onclick="demo.set('cast')">Bola de fogo</button><button onclick="demo.set('dash')">Dash</button></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <script>
+    const ANIMS = [
+      ['Parado', 'idle', 4, 5], ['Correr', 'run', 6, 12], ['Bola de fogo', 'cast', 6, 9], ['Pulo', ['jump'], 1, 1], ['Queda', ['fall'], 1, 1],
+      ['Agachar', 'crouch', 2, 3], ['Dash', 'dash', 2, 14], ['Dano', 'hurt', 2, 4], ['Morte', 'dead', 4, 4],
+    ];
+    const Z = 3;
+    let img, fireImg, meta;
+    const load = s => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = s + '?' + Date.now(); });
+    const frameList = (n, c) => Array.isArray(n) ? n : Array.from({ length: c }, (_, i) => n + i);
+
+    window.setPower = async k => { img = await load(`../assets/sprites/garibaldo_${k}.png`); };
+    Promise.all([load('../assets/sprites/garibaldo_fire.png'),load('../assets/sprites/fireball.png'), fetch('garibaldo-frames.json?' + Date.now()).then(r => r.json())]).then(([a, b, m]) => {
+      img = a; fireImg = b; meta = m;
+      const idx = n => m.names.indexOf(n);
+      const grid = document.getElementById('grid');
+      const items = ANIMS.map(([label, n, c, fps]) => {
+        const card = document.createElement('div'); card.className = 'card';
+        const cv = document.createElement('canvas'); cv.width = m.fw; cv.height = m.fh;
+        const nm = document.createElement('div'); nm.className = 'name'; nm.textContent = label;
+        card.append(cv, nm); grid.append(card);
+        return { cv, frames: frameList(n, c).map(idx), fps, label };
+      });
+      const draw = (cv, f, ox = 0, oy = 0, flip = false) => {
+        const x = cv.getContext('2d'); x.imageSmoothingEnabled = false;
+        const sx = (f % m.cols) * m.fw, sy = Math.floor(f / m.cols) * m.fh;
+        x.save(); if (flip) { x.translate(cv.width, 0); x.scale(-1, 1); }
+        x.drawImage(img, sx, sy, m.fw, m.fh, ox, oy, m.fw, m.fh); x.restore();
+      };
+
+      // cena de demonstração com bola de fogo voando
+      const dc = document.getElementById('demo'), dx = dc.getContext('2d'); dx.imageSmoothingEnabled = false;
+      let mode = 'idle', t0 = 0, shots = [], scroll = 0;
+      window.demo = { set(v) { mode = v; t0 = performance.now(); } };
+      const seq = { idle: ['idle0', 'idle1', 'idle2', 'idle3'], run: ['run0', 'run1', 'run2', 'run3', 'run4', 'run5'], cast: ['cast0', 'cast1', 'cast2', 'cast3', 'cast4', 'cast5'], dash: ['dash0', 'dash1'] };
+      const rate = { idle: 5, run: 12, cast: 9, dash: 14 };
+      let lastShot = -1;
+
+      function frame(now) {
+        for (const it of items) draw2(it, now);
+        const names = seq[mode], n = Math.floor((now - t0) / 1000 * rate[mode]);
+        const nameF = mode === 'cast' ? names[n % 6] : names[n % names.length];
+        dx.clearRect(0, 0, dc.width, dc.height);
+        dx.save(); dx.scale(2, 2);
+        // chão
+        dx.fillStyle = '#3a2b2a'; dx.fillRect(0, 85, 240, 20); dx.fillStyle = '#5d7a3a'; dx.fillRect(0, 85, 240, 3);
+        const px = mode === 'dash' ? 10 + ((now - t0) / 6) % 150 : mode === 'run' ? 10 + ((now - t0) / 14) % 150 : 40;
+        const f = m.names.indexOf(nameF);
+        const sx = (f % m.cols) * m.fw, sy = Math.floor(f / m.cols) * m.fh;
+        dx.drawImage(img, sx, sy, m.fw, m.fh, px - 8, 85 - 76, m.fw, m.fh);
+        if (mode === 'cast' && nameF === 'cast3' && lastShot !== Math.floor((now - t0) / 1000 * rate.cast / 6)) {
+          lastShot = Math.floor((now - t0) / 1000 * rate.cast / 6);
+          shots.push({ x: px + 62, y: 85 - 33 });
+        }
+        for (const s of shots) { s.x += 3.2; const k = Math.floor(now / 70) % 4; dx.drawImage(fireImg, k * 32, 0, 32, 32, s.x - 21, s.y - 17, 32, 32); }
+        shots = shots.filter(s => s.x < 250);
+        dx.restore();
+        requestAnimationFrame(frame);
+      }
+      function draw2(it, now) {
+        const k = it.frames[Math.floor(now / 1000 * it.fps) % it.frames.length];
+        const x = it.cv.getContext('2d'); x.clearRect(0, 0, it.cv.width, it.cv.height);
+        draw(it.cv, k);
+      }
+      requestAnimationFrame(frame);
+    });
+  </script>
+</body>
+</html>
