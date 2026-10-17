@@ -8,11 +8,15 @@ Você escolhe um de **3 heróis** antes de começar:
 
 | Herói | Estilo | Armas (1 / 2 / 3) | Golpe | Especial |
 |---|---|---|---|---|
-| **Garibaldo** (Mago) | equilibrado, 5 vidas | Fogo (explode) · Gelo (perfura, deixa lento) · Raio (3 tiros, destrói tiros roxos) | espada espiritual | Explosão Arcana |
-| **Bruno** (Guerreiro) | tanque lento, 8 vidas; o dash machuca quem estiver no caminho | Machado (perfura) · Lança (rápida) · Tremor (onda no chão) | espadada (longo alcance, dano alto) | Terremoto |
-| **Leo** (Arqueiro) | rápido e frágil, 4 vidas, pulo duplo | Flecha · Flecha de fogo (explode) · Flecha tripla | adaga (rápida) | Chuva de Flechas |
+| **Garibaldo** (Mago) | equilibrado, 100 de vida | Fogo (explode) · Gelo (perfura, deixa lento) · Raio (3 tiros, destrói tiros roxos) | espada espiritual | Explosão Arcana |
+| **Bruno** (Guerreiro) | tanque lento, 160 de vida; o dash machuca quem estiver no caminho | Machado (perfura) · Lança (rápida) · Tremor (onda no chão) | espadada (longo alcance, dano alto) | Terremoto |
+| **Leo** (Arqueiro) | rápido e frágil, 80 de vida, pulo duplo | Flecha · Flecha de fogo (explode) · Flecha tripla | adaga (rápida) | Chuva de Flechas |
 
 Os nomes Bruno e Leo são provisórios: troque em `src/characters.js`.
+
+A vida aparece numa **barra** no canto superior esquerdo (com um rastro claro do dano recente e uma
+divisão a cada golpe). Cada golpe ou tiro inimigo tira `HIT_DAMAGE` (20) e cada coração recupera
+`HEAL` (20), ambos em `src/config.js`; a vida máxima de cada herói fica em `src/characters.js`.
 
 ## Rodar
 

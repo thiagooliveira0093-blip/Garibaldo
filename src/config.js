@@ -8,6 +8,10 @@ export const GAME_H = 540;
 export const GRAV = 1900;
 export const ICE_SLOW = { time: 2.2, factor: 0.45 };   // lentidão causada por armas com `slow`
 
+// Vida do jogador em pontos (barra no HUD). A vida máxima de cada herói fica em characters.js.
+export const HIT_DAMAGE = 20;   // dano de qualquer golpe ou tiro inimigo
+export const HEAL = 20;         // vida recuperada por coração coletado
+
 // ---------- Tiros inimigos ----------
 // Roxos (orb, mortar) podem ser destruídos pelo Raio. Vermelhos (big) e meteoros não.
 export const SHOTS = {

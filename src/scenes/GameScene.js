@@ -1,5 +1,5 @@
 import {
-  GAME_W, GAME_H, LEVELS, ENEMIES, SHOTS, DESTRUCTIBLE, ICE_SLOW,
+  GAME_W, GAME_H, LEVELS, ENEMIES, SHOTS, DESTRUCTIBLE, ICE_SLOW, HIT_DAMAGE, HEAL,
   GRAZE, PERFECT_DODGE, SLOW_FACTOR,
 } from '../config.js';
 import { FRAME } from '../assets.js';
@@ -91,6 +91,7 @@ export default class GameScene extends Phaser.Scene {
     this.waves = new Waves(this, waves);
     this.camX = 0;
     this.cameras.main.setBounds(0, 0, this.mapW, GAME_H);
+    this.shadowGfx = this.add.graphics().setDepth(6);
     this.warnGfx = this.add.graphics().setDepth(14);
     this.hpGfx = this.add.graphics().setDepth(16);
     Object.assign(this, {
@@ -150,6 +151,7 @@ export default class GameScene extends Phaser.Scene {
     this.updateBlasts(dt);
     this.updatePickups(dt);
     this.drawEnemyBars();
+    this.drawShadows();
 
     this.comboT -= dt; if (this.comboT <= 0) this.combo = 0;
     this.goT -= real; this.bannerT -= real;
@@ -371,6 +373,27 @@ export default class GameScene extends Phaser.Scene {
     else if (r < 0.35) this.dropPickup('mana', cx, cy);
   }
 
+  // Sombra suave no chão: ajuda a ler onde cada um está (principalmente no ar) e destaca os
+  // personagens escuros contra o cenário. Diminui e some um pouco conforme sobe.
+  drawShadows() {
+    const g = this.shadowGfx;
+    g.clear();
+    const draw = (x, footY, width, lift) => {
+      const k = Phaser.Math.Clamp(1 - lift / 240, 0.3, 1);
+      g.fillStyle(0x000000, 0.33 * k).fillEllipse(x, footY, width * k, 6 + 5 * k);
+    };
+    const p = this.player;
+    if (p.alive) {
+      const footY = p.onGround ? p.y : this.groundAt(p.x);
+      draw(p.x, footY - 1, p.body.width + 14, footY - p.y);
+    }
+    for (const e of this.enemies.getChildren()) {
+      if (e.dead || e.spawnT > 0 || (!e.def.gravity && e.kind !== 'boss')) continue;
+      const footY = e.def.gravity && e.body.blocked.down ? e.y : this.groundAt(e.x);
+      draw(e.x, footY - 1, e.body.width + (e.kind === 'boss' ? 30 : 12), footY - e.y);
+    }
+  }
+
   drawEnemyBars() {
     const g = this.hpGfx;
     g.clear();
@@ -402,7 +425,7 @@ export default class GameScene extends Phaser.Scene {
     if (!k.active || this.state !== 'play') return;
     const p = this.player;
     sfx('pick');
-    if (k.type === 'heart') { p.hp = Math.min(p.maxHp, p.hp + 1); this.fx.floater(k.x, k.y - 10, '+1 VIDA', '#ff7a9a'); }
+    if (k.type === 'heart') { p.hp = Math.min(p.maxHp, p.hp + HEAL); this.fx.floater(k.x, k.y - 10, `+${HEAL} VIDA`, '#ff7a9a'); }
     else { p.energy = Math.min(100, p.energy + 25); this.fx.floater(k.x, k.y - 10, '+25 ARCANO', '#d7a8ff'); }
     k.destroy();
   }
@@ -411,7 +434,7 @@ export default class GameScene extends Phaser.Scene {
   damagePlayer() {
     const p = this.player;
     if (p.iframes > 0 || p.dashT > 0 || this.state !== 'play' || this.winT > 0) return;
-    p.hp--; p.iframes = 1.3; p.setVelocityY(-320);
+    p.hp = Math.max(0, p.hp - HIT_DAMAGE); p.iframes = 1.3; p.setVelocityY(-320);
     this.combo = 0;
     this.fx.shake(12);
     this.fx.burst(p.x, p.y - 24, 0xff4d6d, 16, 260);

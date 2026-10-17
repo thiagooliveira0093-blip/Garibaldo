@@ -6,6 +6,7 @@ import { sfx } from '../systems/sfx.js';
 // pois o espelhamento do sprite não espelha o corpo de física.
 const ORIGIN = { x: 36 / 96, y: 79 / 80 };
 const STAND_OY = 29, STAND_H = 50, CROUCH_OY = 47, CROUCH_H = 32;
+const COYOTE_TIME = 0.1, JUMP_BUFFER = 0.12;   // segundos de tolerância do pulo
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, charId = 'mage') {
@@ -23,7 +24,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
     Object.assign(this, {
       facing: 1, hp: char.stats.hp, maxHp: char.stats.hp, iframes: 0, dashT: 0, dashCd: 0, dashDodged: false, dashHits: new Set(),
-      dropT: 0, cd: 0, castT: 0, meleeT: 0, meleeCd: 0, meleeHit: true, jumpsLeft: char.stats.airJumps,
+      dropT: 0, cd: 0, castT: 0, meleeT: 0, meleeCd: 0, meleeHit: true, jumpsLeft: char.stats.airJumps, coyoteT: 0, jumpBufT: 0,
       power: 0, energy: 0, crouch: false, aimAngle: 0, moving: false, ghostT: 0, alive: true, t: 0,
     });
   }
@@ -79,16 +80,20 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       this.moving = move !== 0;
       this.setVelocityX(move * (this.crouch ? st.crawl : st.run) * (this.meleeT > 0 ? melee.moveFactor : 1));
 
-      if (c.just('jump')) {
-        if (onGround) {
-          if (dn && this.onPlatform()) { this.dropT = 0.25; this.setCrouch(false); } // descer da plataforma
-          else { this.setCrouch(false); this.setVelocityY(-st.jump); s.fx.burst(this.x, this.y, 0xbbbbaa, 6, 90); }
-        } else if (this.jumpsLeft > 0) { // pulo duplo
-          this.jumpsLeft--;
-          this.setVelocityY(-st.jump * 0.9);
-          s.fx.burst(this.x, this.y - 4, 0xffffff, 8, 140, 0, 350);
-          sfx('dash');
-        }
+      // Pulo com tolerância: o "coyote time" deixa pular logo depois de sair da borda e o buffer
+      // lembra de um aperto de pulo feito um instante antes de pousar.
+      if (c.just('jump')) this.jumpBufT = JUMP_BUFFER;
+      this.jumpBufT -= dt;
+      if (onGround) this.coyoteT = COYOTE_TIME; else this.coyoteT -= dt;
+      if (this.jumpBufT > 0 && (onGround || this.coyoteT > 0)) {
+        this.jumpBufT = 0; this.coyoteT = 0;
+        if (onGround && dn && this.onPlatform()) { this.dropT = 0.25; this.setCrouch(false); } // descer da plataforma
+        else { this.setCrouch(false); this.setVelocityY(-st.jump); s.fx.burst(this.x, this.y, 0xbbbbaa, 6, 90); }
+      } else if (c.just('jump') && this.jumpsLeft > 0) { // pulo duplo (só com aperto novo, no ar)
+        this.jumpsLeft--; this.jumpBufT = 0;
+        this.setVelocityY(-st.jump * 0.9);
+        s.fx.burst(this.x, this.y - 4, 0xffffff, 8, 140, 0, 350);
+        sfx('dash');
       }
       if (!c.held('jump') && this.body.velocity.y < -280) this.setVelocityY(-280); // pulo variável
 
