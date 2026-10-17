@@ -80,9 +80,9 @@ export default class SelectScene extends Phaser.Scene {
     const n = CHARACTER_LIST.length;
     if (c.just('left')) { this.index = (this.index + n - 1) % n; this.refresh(); }
     if (c.just('right')) { this.index = (this.index + 1) % n; this.refresh(); }
-    if (c.just('p1')) { this.index = 0; this.refresh(); }
-    if (c.just('p2')) { this.index = 1; this.refresh(); }
-    if (c.just('p3')) { this.index = 2; this.refresh(); }
+    if (c.just('gem1')) { this.index = 0; this.refresh(); }   // 1, 2, 3 escolhem a classe direto
+    if (c.just('gem2')) { this.index = 1; this.refresh(); }
+    if (c.just('gem3')) { this.index = 2; this.refresh(); }
     if (c.just('confirm')) this.confirm();
   }
 }
