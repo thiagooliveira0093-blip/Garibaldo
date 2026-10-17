@@ -19,20 +19,20 @@ export default class TitleScene extends Phaser.Scene {
 
     const lines = [
       ['Mover', 'A / D  ou  setas'],
-      ['Pular', 'Espaço  ou  X'],
-      ['Arma 1 / Arma 2', 'J  /  K'],
+      ['Pular', 'Espaço  ou  W'],
+      ['Ataque FRACO', 'clique esquerdo  (ou J)'],
+      ['Ataque FORTE', 'clique direito  (ou K)'],
+      ['Mirar (arco e anel)', 'cursor do mouse'],
       ['Rolar (invulnerável)', 'Shift  ou  C'],
-      ['Mirar arco e anel', 'W  ou  seta cima'],
-      ['Agachar', 'S  ou  seta baixo'],
-      ['Descer da plataforma', 'baixo + Espaço'],
-      ['Gema do Anel', 'Q / E  ou  1 2 3'],
+      ['Agachar / descer', 'S  /  S + Espaço'],
+      ['Elemento', '1  2  3   ou   Q / E'],
       ['Habilidade', 'L  ou  V (barra cheia)'],
     ];
     lines.forEach(([a, b], i) => {
       this.add.text(cx - 20, 190 + i * 22, a, uiStyle(15, '#dddddd')).setOrigin(1, 0.5).setDepth(6);
       this.add.text(cx + 20, 190 + i * 22, b, uiStyle(15, '#9fe8ff')).setOrigin(0, 0.5).setDepth(6);
     });
-    this.add.text(cx, 420, 'Espada: aperte J/K em sequência para o combo  ·  Arco: segure para carregar  ·  Anel: magia teleguiada', uiStyle(13, '#ffb98a')).setOrigin(0.5).setDepth(6);
+    this.add.text(cx, 420, 'Escolha uma arma: Espada, Arco ou Anel  ·  o elemento (fogo, gelo, raio) vale para todas', uiStyle(13, '#ffb98a')).setOrigin(0.5).setDepth(6);
     this.add.text(cx, 440, 'Role por dentro dos ataques para esquivar · atacar pelas costas causa golpe crítico', uiStyle(13, '#ffb98a')).setOrigin(0.5).setDepth(6);
     const start = this.add.text(cx, 488, 'ENTER para começar', uiStyle(24)).setOrigin(0.5).setDepth(6);
     this.tweens.add({ targets: start, alpha: 0.2, duration: 500, yoyo: true, repeat: -1 });

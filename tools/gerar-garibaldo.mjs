@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Img, sheet, hex, alpha } from './pixel.mjs';
+import { bowPose } from './bowpose.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -194,6 +195,11 @@ function hero(img, o = {}) {
       wisps(img, [B[0], B[1] - 3], O, P.orbT + 2, 2);
       flame(img, O[0], O[1], P.orb, P.orbT, P.tail);
     }
+  } else if (P.arm === 'bow') {
+    // arco: o braço sai do manto aberto e a capa fica por trás
+    img.poly([[S[0] - 4, S[1] - 4], [S[0] + 3, S[1] - 4], [S[0] + 4, S[1] + 6], [S[0] - 4, S[1] + 7]], C.lining);
+    img.line(S[0] - 3, S[1] - 4, S[0] - 3, S[1] + 7, C.cloakD, 1);
+    bowPose(img, S, P, { arm: C.cloak, skin: C.skin });
   } else if (P.arm === 'slash') {
     // golpe de espada espiritual: o braço sai do manto empunhando a lâmina, com rastro em arco
     const dx = Math.cos(P.sa), dy = Math.sin(P.sa), H = [S[0] + dx * 11, S[1] + dy * 11];
@@ -275,6 +281,14 @@ slash.forEach((p, i) => add(`slash${i}`, im => hero(im, { arm: 'slash', fF: [6, 
 const aimed = aims => cast.map((p, i) => ({ ...p, aim: aims[i], tail: 0 }));
 aimed([0.5, 0.05, -0.35, -0.75, -0.75, -0.3]).forEach((p, i) => add(`castd${i}`, im => hero(im, { fF: [6, 0], fB: [-5, 0], flare: 1, cape: 3, ...p })));
 aimed([0.1, -0.55, -1.05, -1.45, -1.45, -1.0]).forEach((p, i) => add(`castu${i}`, im => hero(im, { fF: [6, 0], fB: [-5, 0], flare: 1, cape: 3, ...p })));
+
+// arco: puxa a corda (4 quadros), solta (2); horizontal 46-51, diagonal 52-57, para cima 58-63
+const bowFrames = aim => [
+  { draw: 0.1, arrow: true, lean: -1 }, { draw: 0.4, arrow: true, lean: -1 }, { draw: 0.8, arrow: true, lean: -2 },
+  { draw: 1, arrow: true, lean: -2, hood: 3 }, { draw: 0.1, arrow: false, lean: 1, hood: 3 }, { draw: 0, arrow: false, lean: 0 },
+].map(p => ({ arm: 'bow', aim, ...p }));
+[['bowh', 0], ['bowd', -0.7], ['bowu', -1.4]].forEach(([tag, aim]) => bowFrames(aim).forEach((p, i) =>
+  add(`${tag}${i}`, im => hero(im, { fF: [6, 0], fB: [-5, 0], flare: 1, cape: 3, ...p }))));
 
 // ---------- pós-processamento por quadro ----------
 function outline(img, fx, fy, fw, fh) {

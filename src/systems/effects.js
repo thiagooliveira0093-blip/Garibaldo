@@ -63,6 +63,22 @@ export default class Effects {
     this.burst(x, y, 0xffffff, 12, 200, -160, 600);
   }
 
+  // raio em zigue-zague entre dois pontos (elemento Raio saltando para outro inimigo)
+  lightning(x0, y0, x1, y1, color = 0xf6f35a) {
+    const g = this.s.add.graphics().setDepth(17);
+    const n = 7, pts = [];
+    for (let i = 0; i <= n; i++) {
+      const k = i / n, jitter = i === 0 || i === n ? 0 : Phaser.Math.Between(-12, 12);
+      pts.push([Phaser.Math.Linear(x0, x1, k) + jitter, Phaser.Math.Linear(y0, y1, k) + jitter]);
+    }
+    for (const [w, col] of [[6, color], [2, 0xffffff]]) {
+      g.lineStyle(w, col, 1).beginPath().moveTo(pts[0][0], pts[0][1]);
+      for (const p of pts.slice(1)) g.lineTo(p[0], p[1]);
+      g.strokePath();
+    }
+    this.s.tweens.add({ targets: g, alpha: 0, duration: 200, onComplete: () => g.destroy() });
+  }
+
   // meia-lua de um golpe de espada (inimigos); `facing` espelha para a esquerda
   slashArc(x, y, facing, color = 0xffffff, radius = 46) {
     const g = this.s.add.graphics().setDepth(16).setPosition(x, y).setScale(facing, 1);

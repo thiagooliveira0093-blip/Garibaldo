@@ -29,7 +29,8 @@ export default class GameScene extends Phaser.Scene {
     this.ready = false;
     this.levelIndex = data.level || 0;
     this.carry = data.carry || null;
-    this.charId = data.char || this.registry.get('char') || 'mage'; // escolhido na tela de seleção
+    this.charId = 'mage';
+    this.weaponId = data.weapon || this.registry.get('weapon') || 'sword'; // escolhida na tela de seleção
   }
 
   create() {
@@ -57,7 +58,7 @@ export default class GameScene extends Phaser.Scene {
     // ---------- objetos: player, ondas e inimigos ----------
     const objs = (map.getObjectLayer('objetos') || { objects: [] }).objects;
     const start = objs.find(o => o.name === 'player') || { x: 100, y: this.groundAt(100) };
-    this.player = new Player(this, start.x, start.y, this.charId);
+    this.player = new Player(this, start.x, start.y, this.weaponId, this.charId);
 
     const waves = objs.filter(o => o.name === 'onda')
       .map(o => ({ id: prop(o, 'id', 0), x: o.x, boss: !!prop(o, 'chefe', false), spawns: [] }))
@@ -179,7 +180,8 @@ export default class GameScene extends Phaser.Scene {
     const s = this.pShots.create(x, y, sp.sheet, sp.frame);
     s.setDepth(13).setOrigin(ox / 32, oy / 32).play(sp.anim);
     if (!pw.solid) s.setBlendMode('ADD');
-    if (!pw.spin) s.setRotation(ang);                       // machado e tremor não giram com a mira
+    if (pw.tint) s.setTint(pw.tint);                         // flechas ganham a cor do elemento
+    if (!pw.spin) s.setRotation(ang);                       // tiros giram para a direção em que vão
     s.body.setCircle(pw.radius, ox - pw.radius, oy - pw.radius);
     let vx = Math.cos(ang) * pw.speed, vy = Math.sin(ang) * pw.speed;
     if (pw.ground) { s.y = this.groundAt(x) - 16; vx = facing * pw.speed; vy = 0; s.setFlipX(facing < 0); } // rente ao chão
@@ -337,6 +339,7 @@ export default class GameScene extends Phaser.Scene {
       stun: arrow && pw.pierce ? 0.25 : 0, knock: Math.sign(vx) * 140,
       hitStop: arrow && pw.pierce ? 0.05 : 0,
     });
+    if (pw.fx) this.elementFx(pw.fx, e, pw.dmg);              // elemento nas flechas
     if (pw.slow) e.slowT = ICE_SLOW.time;
     if (pw.splash) { // explode em área e some
       for (const o of this.enemies.getChildren().slice()) {
@@ -376,9 +379,67 @@ export default class GameScene extends Phaser.Scene {
     e.flashHit();
     this.player.energy = Math.min(100, this.player.energy + 1.5);
     this.fx.damageNumber(e.body.center.x, e.y - e.body.height - 6, dmg, !!opts.crit);
-    if (opts.stun && !e.def.armor) e.stagger(opts.stun, opts.knock || 0);
+    // armadura (brutamontes, chefe) ignora o atordoamento, a não ser que o golpe quebre armadura (o chefe nunca é atordoado)
+    if (opts.stun && (!e.def.armor || (opts.breakArmor && e.kind !== 'boss'))) e.stagger(opts.stun, opts.knock || 0);
     if (opts.hitStop) this.hitStopT = Math.max(this.hitStopT, opts.hitStop);
     if (e.hp <= 0) this.killEnemy(e);
+  }
+
+  // Efeito do elemento escolhido (1/2/3) em espada, flechas e nova:
+  // splash = dano em área ao redor · slow = deixa lento · chain = salta para outro inimigo próximo
+  elementFx(fx, e, dmg) {
+    if (!fx || e.dead && !e.body) return;
+    const c = e.body.center, gem = this.player.gemData;
+    if (fx.slow) e.slowT = ICE_SLOW.time;
+    if (fx.splash) {
+      for (const o of this.enemies.getChildren().slice()) {
+        if (o === e || o.dead || o.spawnT > 0) continue;
+        if (Phaser.Math.Distance.Between(o.body.center.x, o.body.center.y, c.x, c.y) < fx.splash) this.damageEnemy(o, dmg * fx.splashFrac);
+      }
+      this.fx.burst(c.x, c.y, gem.color, 10, 220, 100, 400);
+      this.fx.ring(c.x, c.y, gem.color, true);
+    }
+    if (fx.chain) {
+      let best = null, bd = fx.chain * fx.chain;
+      for (const o of this.enemies.getChildren()) {
+        if (o === e || o.dead || o.spawnT > 0) continue;
+        const dx = o.body.center.x - c.x, dy = o.body.center.y - c.y, d = dx * dx + dy * dy;
+        if (d < bd) { bd = d; best = o; }
+      }
+      if (best) {
+        this.fx.lightning(c.x, c.y, best.body.center.x, best.body.center.y, gem.color);
+        this.damageEnemy(best, dmg * fx.chainFrac);
+      }
+    }
+  }
+
+  // Nova do Anel (ataque forte): explosão ao redor do herói que empurra, atordoa e destrói os tiros
+  nova(p, h) {
+    const gem = p.gemData, cx = p.x, cy = p.y - 40;
+    this.fx.portal(p.x, p.y - 4, gem.color);
+    this.fx.ring(cx, cy, gem.color);
+    this.fx.burst(cx, cy, gem.color, 22, 320, 0, 600);
+    let hits = 0;
+    for (const e of this.enemies.getChildren().slice()) {
+      if (e.dead || e.spawnT > 0) continue;
+      const c = e.body.center, d = Phaser.Math.Distance.Between(c.x, c.y, cx, cy);
+      if (d > h.radius + e.body.width / 2) continue;
+      hits++;
+      this.damageEnemy(e, h.dmg, { stun: h.stun, knock: Math.sign(e.x - p.x || 1) * h.knock, breakArmor: true });
+      p.energy = Math.min(100, p.energy + 3);
+      this.elementFx(gem.fx, e, h.dmg);
+    }
+    for (const s of this.eShots.getChildren().slice()) {
+      if (!s.visible || s.kind === 'meteor' || s.kind === 'wave') continue;
+      if (Phaser.Math.Distance.Between(s.x, s.y, cx, cy) > h.radius) continue;
+      this.fx.burst(s.x, s.y, gem.color, 5, 160, 0, 350);
+      p.energy = Math.min(100, p.energy + 1.5);
+      this.score += 10;
+      s.destroy();
+    }
+    this.fx.shake(h.shake);
+    if (hits) this.hitStopT = Math.max(this.hitStopT, h.hitStop);
+    sfx('boom');
   }
 
   // Rolar por dentro de um inimigo o deixa de costas por um instante (golpe crítico)
@@ -446,11 +507,11 @@ export default class GameScene extends Phaser.Scene {
     }
     // barra de carga do arco, acima da cabeça: fica branca quando a flecha vai atravessar
     const p = this.player;
-    if (p.alive && p.chargeSlot >= 0) {
-      const w = p.weapons[p.chargeSlot], f = Phaser.Math.Clamp(p.charge / w.maxCharge, 0, 1);
+    if (p.alive && p.drawing) {
+      const h = p.weapon.heavy, f = Phaser.Math.Clamp(p.charge / h.maxCharge, 0, 1);
       const bx = p.x - 20, by = p.y - p.body.height - 16;
       g.fillStyle(0x000000, 0.65).fillRect(bx - 1, by - 1, 42, 8);
-      g.fillStyle(f >= w.pierceAt ? 0xffffff : 0xffd24a).fillRect(bx, by, 40 * f, 6);
+      g.fillStyle(f >= h.pierceAt ? 0xffffff : 0xffd24a).fillRect(bx, by, 40 * f, 6);
     }
   }
 
@@ -507,27 +568,29 @@ export default class GameScene extends Phaser.Scene {
     sfx('dodge');
   }
 
-  // Golpe de espada (um passo do combo): acerta quem está à frente, empurra e atordoa; atacar
-  // pelas costas é crítico. Também destrói tiros pequenos (arriscado, mas recompensa com energia).
-  meleeStrike(p, st, step) {
-    const S = p.scaleX, m = p.char.sword, w = st.reach * S, h = st.height * S;   // o alcance acompanha o tamanho do herói
-    const box = new Rectangle(p.facing > 0 ? p.x - 6 * S : p.x - w + 6 * S, p.y - h - 4, w, h);
-    const gem = p.gemData, color = p.char.variantByGem ? gem.color : 0xffffff;
+  // Golpe de espada (um golpe do combo fraco ou o golpe forte): acerta quem está à frente, empurra e
+  // atordoa; atacar pelas costas é crítico. Também destrói tiros (o forte, todos), o que dá energia.
+  meleeStrike(p, st) {
+    const S = p.scaleX, w = p.weapon, reach = st.reach * S, h = st.height * S;   // o alcance acompanha o tamanho do herói
+    const box = new Rectangle(p.facing > 0 ? p.x - 6 * S : p.x - reach + 6 * S, p.y - h - 4, reach, h);
+    const gem = p.gemData, color = gem.color, big = st.finisher || st.heavy;
     let hits = 0;
     for (const e of this.enemies.getChildren().slice()) {
       if (e.dead || e.spawnT > 0 || !Intersects.RectangleToRectangle(box, e.bodyRect())) continue;
       hits++;
       const c = e.body.center;
-      this.damageEnemy(e, st.dmg * p.bonus('sword'), {
-        crit: (e.x - p.x) * e.facing > 0, critMul: m.backstab,    // jogador atrás do inimigo
-        stun: st.stun, knock: p.facing * st.knock, hitStop: st.finisher ? 0.11 : 0.06,
+      this.damageEnemy(e, st.dmg, {
+        crit: (e.x - p.x) * e.facing > 0, critMul: w.backstab,    // jogador atrás do inimigo
+        stun: st.stun, knock: p.facing * st.knock, breakArmor: !!st.breakArmor,
+        hitStop: st.hitStop ?? (st.finisher ? 0.11 : 0.06),
       });
-      p.energy = Math.min(100, p.energy + m.energy);
-      if (gem.slow && p.char.variantByGem) e.slowT = ICE_SLOW.time;   // espada do mago com a gema de Gelo
-      this.fx.burst(c.x, c.y, color, st.finisher ? 16 : 10, 240, 100, 400);
+      p.energy = Math.min(100, p.energy + w.energy);
+      this.elementFx(gem.fx, e, st.dmg);                           // elemento: área, lentidão ou raio
+      this.fx.burst(c.x, c.y, color, big ? 16 : 10, 240, 100, 400);
     }
+    const breaks = st.heavy ? w.breaksAll : w.breaks;
     for (const s of this.eShots.getChildren().slice()) {
-      if (!s.visible || !m.breaks.includes(s.kind)) continue;
+      if (!s.visible || !breaks.includes(s.kind)) continue;
       if (!Intersects.CircleToRectangle(new Circle(s.x, s.y, s.radius), box)) continue;
       hits++;
       this.fx.burst(s.x, s.y, color, 6, 180, 0, 350);
@@ -535,8 +598,8 @@ export default class GameScene extends Phaser.Scene {
       this.score += 10;
       s.destroy();
     }
-    if (hits) { this.fx.shake(st.finisher ? 9 : 4); sfx('hit'); }
-    else if (st.finisher) this.fx.shake(2);
+    if (hits) { this.fx.shake(st.shake ?? (st.finisher ? 9 : 4)); sfx('hit'); }
+    else if (big) this.fx.shake(2);
   }
 
   // Especial do personagem: limpa todos os tiros inimigos e causa dano em tudo na tela.

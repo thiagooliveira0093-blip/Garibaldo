@@ -88,9 +88,6 @@ export const ANIMS = [
   // armas do guerreiro e do arqueiro (proj3.png)
   { key: 'shot-arrow',    sheet: 'proj3', frames: [0, 1], rate: 10 },
   { key: 'shot-firearrow', sheet: 'proj3', frames: [2, 3], rate: 14 },
-  { key: 'shot-spear',    sheet: 'proj3', frames: [4], rate: 1 },
-  { key: 'shot-axe',      sheet: 'proj3', frames: [5, 6, 7, 8], rate: 22 },
-  { key: 'shot-quake',    sheet: 'proj3', frames: [9, 10], rate: 12 },
 ];
 
 // Quadros avulsos em projectiles.png

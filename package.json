@@ -8,7 +8,7 @@
     "postinstall": "node -e \"const fs=require('fs');fs.mkdirSync('vendor',{recursive:true});fs.copyFileSync('node_modules/phaser/dist/phaser.min.js','vendor/phaser.min.js')\"",
     "placeholders": "node tools/gerar-placeholders.mjs",
     "mago": "node tools/gerar-garibaldo.mjs",
-    "personagens": "node tools/gerar-personagens.mjs",
+    "armas": "node tools/gerar-armas.mjs",
     "fase1": "node tools/gerar-fase1.mjs"
   },
   "dependencies": {

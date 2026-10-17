@@ -4,33 +4,30 @@ Ação 2D feita em **Phaser 3**, caminhando para o estilo **Dead Cells**: combat
 com invulnerabilidade, inimigos que avisam antes de atacar e armas que se encaixam em estilos de jogo.
 (A versão run'n'gun anterior está no histórico do Git.)
 
+Você joga com o **Garibaldo** e escolhe **uma arma** antes de começar. Todo ataque é pelo **mouse**:
+**clique esquerdo = ataque FRACO**, **clique direito = ataque FORTE**, e o cursor mira.
+
+| Arma | Fraco (clique esquerdo) | Forte (clique direito) |
+|---|---|---|
+| **Espada** | combo de 3 golpes (aperte em sequência; o 3º empurra e atordoa) | golpe pesado e lento: quebra armadura, empurra longe, destrói qualquer tiro |
+| **Arco** | flecha rápida (segure para repetir) | **segure** para carregar e solte: mais dano e velocidade, carga alta atravessa |
+| **Anel** | magia teleguiada (segure para repetir) | **nova** ao redor: empurra, atordoa e destrói tiros |
+
+**Elementos (teclas 1, 2, 3):** Fogo (dano em área), Gelo (deixa lento) e Raio (salta para outro inimigo).
+Valem para todas as armas e mudam a cor do herói.
+
 **Combate**
-- **2 armas por vez** (J e K) + **habilidade** (L, enche ao acertar e desviar) + **rolamento** (Shift/C).
-- **Espada:** combo de 3 golpes (o 3º é o finalizador: empurra e atordoa). Encadeie apertando de novo
-  logo depois do corte. Destrói tiros pequenos.
-- **Arco:** toque = flecha fraca; **segure para carregar** (mais dano e velocidade; carga alta atravessa).
-- **Anel:** magia teleguiada. A gema (1/2/3) define o efeito: Fogo explode, Gelo perfura e deixa lento,
-  Raio dispara 3 e destrói tiros roxos.
-- **Rolamento:** invulnerável no começo, cancela qualquer ataque e atravessa inimigos. Rolar por dentro de
-  um ataque é **esquiva perfeita** (câmera lenta + energia); rolar por dentro de um inimigo o deixa de costas
-  por um instante: atacar pelas costas causa **golpe crítico**.
+- **Rolamento** (Shift/C): invulnerável no começo, cancela qualquer ataque e atravessa inimigos. Rolar por
+  dentro de um ataque é **esquiva perfeita** (câmera lenta + energia); rolar por dentro de um inimigo o deixa
+  de costas por um instante: atacar pelas costas causa **golpe crítico**.
 - **Sem dano por encostar:** só ataques machucam. Soldados e magos mostram um brilho antes de atacar; um
   golpe forte durante o brilho **interrompe** o ataque (brutamontes e chefe têm armadura).
+- **Habilidade** (L): Explosão Arcana; a barra enche ao acertar e desviar.
 - Impacto: pausa curta no golpe, empurrão, número de dano.
-
-Você escolhe uma de **3 classes** antes de começar:
-
-| Classe | Estilo | Armas | Rolamento | Habilidade |
-|---|---|---|---|---|
-| **Garibaldo** (Mago) | 100 de vida; Anel com +25% de dano | Anel (J) · Espada espiritual (K) | médio | Explosão Arcana |
-| **Bruno** (Guerreiro) | tanque, 160 de vida; espada com +25% | Espadada (J) · Arco (K) | curto e pesado | Terremoto |
-| **Leo** (Arqueiro) | frágil, 80 de vida, pulo duplo; arco com +25% e adaga com crítico x2,2 | Arco (J) · Adaga (K) | longo e rápido | Chuva de Flechas |
-
-Os nomes Bruno e Leo são provisórios: troque em `src/characters.js`.
 
 A vida aparece numa **barra** no canto superior esquerdo (com um rastro claro do dano recente e uma
 divisão a cada golpe). Cada golpe ou tiro inimigo tira `HIT_DAMAGE` (20) e cada coração recupera
-`HEAL` (20), ambos em `src/config.js`; a vida máxima de cada herói fica em `src/characters.js`.
+`HEAL` (20), ambos em `src/config.js`; a vida máxima fica em `src/characters.js`.
 
 ## Rodar
 
@@ -70,8 +67,8 @@ borda de baixo** do quadro (o jogo espelha sozinho).
 
 | Arquivo | Quadro | Quadros (índice → animação) |
 |---|---|---|
-| `garibaldo_fire.png`, `garibaldo_ice.png`, `garibaldo_bolt.png`, `warrior.png`, `archer.png` | 96x80, 7 colunas | Mago (um sheet por poder: olhos, fecho e magia mudam de cor), Guerreiro e Arqueiro. Mesmo layout nos 3: 0-3 parado · 4-5 agachado · 6-7 dano · 8-13 correndo · 14 pulo · 15 queda · 16-21 ataque à distância · 22-23 rolamento · 24-27 morte · 28-33 golpe corpo a corpo · 34-39 e 40-45 ataque à distância nativo na diagonal e para cima · 46-63 arco do guerreiro (horizontal, diagonal, cima). Pés em x=36, y=79. O jogo desenha os heróis em **1,5x** (`SCALE` em `src/entities/Player.js`) e os inimigos comuns em 1,25x (`scale` em `src/config.js`). |
-| `proj3.png` | 32x32, 8 colunas | 0-1 flecha · 2-3 flecha de fogo · 4 lança · 5-8 machado · 9-10 tremor · 11-16 ícones do HUD |
+| `garibaldo_fire.png`, `garibaldo_ice.png`, `garibaldo_bolt.png` | 96x80, 7 colunas | um sheet por elemento (olhos, fecho e magia mudam de cor), mesmo layout: 0-3 parado · 4-5 agachado · 6-7 dano · 8-13 correndo · 14 pulo · 15 queda · 16-21 anel · 22-23 rolamento · 24-27 morte · 28-33 golpe de espada · 34-39 anel na diagonal · 40-45 anel para cima · 46-51 arco · 52-57 arco na diagonal · 58-63 arco para cima. Pés em x=36, y=79. O jogo desenha o herói em **1,5x** (`SCALE` em `src/entities/Player.js`) e os inimigos comuns em 1,25x (`scale` em `src/config.js`). |
+| `proj3.png` | 32x32, 8 colunas | 0-1 flecha · 2-3 flecha de fogo · 17 ícone da espada · 18 ícone do arco · 19 ícone do anel |
 | `fireball.png` | 32x32 | bola de fogo do jogador (cabeça em x=21, y=17; rastro para a esquerda) |
 | `grunt.png` | 48x48 | 0-1 parado · 2-5 andando · 6-7 atacando |
 | `caster.png` | 48x64 | 0-3 parado · 4-5 conjurando |
@@ -142,28 +139,27 @@ Vida, pontos e energia passam de uma fase para a outra.
 | Ação | Teclas |
 |---|---|
 | Mover | A / D ou setas |
-| Pular | Espaço ou X |
-| Arma 1 | J ou Z |
-| Arma 2 | K ou U |
+| Pular | Espaço, W ou seta cima |
+| Ataque fraco | **clique esquerdo** (ou J) |
+| Ataque forte | **clique direito** (ou K) |
+| Mirar arco e anel | cursor do mouse (sem mouse, atira para onde está olhando) |
 | Rolar | Shift ou C |
-| Mirar arco e anel | W ou seta cima (+ direção) |
-| Agachar | S ou seta baixo |
-| Descer da plataforma | baixo + Espaço |
-| Gema do Anel | Q / E ou 1, 2, 3 |
-| Habilidade | L ou V (barra cheia) |
+| Agachar / descer da plataforma | S / S + Espaço |
+| Elemento | 1, 2, 3 ou Q / E |
+| Habilidade | L, V ou F (barra cheia) |
 | Pausar / Mudo | P / M |
-| Escolher outro herói (ao morrer ou vencer) | T |
+| Escolher outra arma (ao morrer ou vencer) | T |
 
-Para remapear, edite `src/systems/controls.js`.
+Ao atacar com o mouse, o Garibaldo vira para o lado do cursor. Para remapear, edite
+`src/systems/controls.js`.
 
-## Criar ou ajustar um herói
+## Ajustar armas e herói
 
-- `src/characters.js`: cada classe (vida, velocidade, rolamento, quais 2 armas leva, bônus, combo da
-  espada com dano/alcance/tempo/empurrão de cada golpe, habilidade e quais quadros do sprite usar).
-- `src/weapons.js`: as armas (espada, arco, anel) e as gemas do Anel.
-- Para dar uma arma a outra classe, basta pôr o id em `weapons` (`'sword'`, `'bow'`, `'ring'`). Se a classe
-  não tiver os quadros daquela arma, usa o ataque à distância "nativo" dela (`native` em `characters.js`).
+- `src/weapons.js`: as 3 armas, cada uma com o ataque fraco (`light`) e o forte (`heavy`): dano, alcance,
+  tempos, empurrão, atordoamento, recarga. A espada tem o combo em `light.combo`. Também os elementos (`GEMS`).
+- `src/characters.js`: o Garibaldo (vida, velocidade, rolamento, habilidade, quadros do sprite de cada arma).
+- Mouse e teclado: `src/systems/controls.js`.
 
-Sprites: `assets/sprites/warrior.png` e `archer.png` (96x80, mesmo layout de quadros do mago) e
-`proj3.png` (flechas, ícones das armas). `npm run mago` e `npm run personagens` geram os placeholders;
-arquivos que já existem não são sobrescritos (use `-- --force`).
+Sprites: `assets/sprites/garibaldo_<elemento>.png` (96x80, 64 quadros) e `proj3.png` (flechas e ícones
+das armas). `npm run mago` e `npm run armas` geram os placeholders; arquivos que já existem não são
+sobrescritos (use `-- --force`).
