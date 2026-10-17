@@ -1,55 +1,46 @@
-import { GAME_W, GAME_H, LEVELS } from '../config.js';
-import { HERO, variantOf } from '../characters.js';
+import { GAME_W, GAME_H } from '../config.js';
 import { WEAPON_LIST } from '../weapons.js';
 import Controls from '../systems/controls.js';
-import { createParallax } from '../systems/parallax.js';
 import { uiStyle } from '../systems/ui-style.js';
 import { initAudio, toggleMute } from '../systems/sfx.js';
+import { menuBackdrop } from './TitleScene.js';
 
-const CARD_W = 260, CARD_H = 330, CARD_Y = 252;
-// o que cada clique faz em cada arma
-const MOVES = {
-  sword: ['Combo de 3 golpes: aperte em sequência', 'Golpe pesado: quebra armadura e empurra'],
-  bow: ['Flecha rápida: segure para repetir', 'Segure para carregar: atravessa os inimigos'],
-  ring: ['Magia teleguiada: segure para repetir', 'Nova: empurra e destrói tiros ao redor'],
+const CARD_W = 270, CARD_H = 380, CARD_Y = 256;
+const HOW = {
+  sword: 'Golpeia em arco o inimigo mais próximo e os que estiverem perto dele. Forte contra grupos colados em você.',
+  bow: 'Dispara flechas no inimigo mais próximo, mesmo de longe. Com melhorias atravessa fileiras inteiras.',
+  ring: 'Orbes de magia giram em torno de você e ferem tudo que encostar. Boa para andar no meio da horda.',
 };
-// animação do Garibaldo para demonstrar cada arma
-const DEMO = { sword: 'melee', bow: 'bow', ring: 'ring' };
 
-// Escolha da arma antes de começar. O Garibaldo é sempre o mesmo; a arma muda como ele luta.
+// Escolha da arma inicial. As outras armas aparecem depois como melhorias ao subir de nível.
 export default class SelectScene extends Phaser.Scene {
   constructor() { super('Select'); }
 
   create() {
     this.controls = new Controls(this);
-    this.parallax = createParallax(this);
-    this.scroll = 0;
-    this.add.rectangle(0, 0, GAME_W, GAME_H, 0x000000, 0.6).setOrigin(0).setDepth(5);
-    this.add.text(GAME_W / 2, 34, 'ESCOLHA SUA ARMA', uiStyle(32, '#ffe27a')).setOrigin(0.5).setDepth(6);
-
+    menuBackdrop(this, false);
+    this.add.text(GAME_W / 2, 40, 'ESCOLHA SUA ARMA INICIAL', uiStyle(30, '#ffe27a')).setOrigin(0.5);
     const saved = WEAPON_LIST.findIndex(w => w.id === this.registry.get('weapon'));
     this.index = Math.max(0, saved);
     this.cards = WEAPON_LIST.map((w, i) => this.buildCard(w, i));
-    this.add.text(GAME_W / 2, 498, 'Clique esquerdo = ataque FRACO   ·   Clique direito = ataque FORTE   ·   Shift = rolar', uiStyle(14, '#9fe8ff')).setOrigin(0.5).setDepth(6);
-    this.add.text(GAME_W / 2, 522, '◄ ►  escolher    ·    ENTER ou clique  confirmar', uiStyle(14, '#dddddd')).setOrigin(0.5).setDepth(6);
+    this.add.text(GAME_W / 2, 480, 'As armas atacam sozinhas. Você só se move e rola (Espaço).', uiStyle(14, '#9fe8ff')).setOrigin(0.5);
+    this.add.text(GAME_W / 2, 510, '◄ ►  escolher    ·    ENTER ou clique  confirmar', uiStyle(14, '#dddddd')).setOrigin(0.5);
+    this.t = 0;
     this.refresh(true);
   }
 
   buildCard(w, i) {
     const x = GAME_W / 2 + (i - 1) * 300;
-    const c = this.add.container(x, CARD_Y).setDepth(6);
-    const bg = this.add.rectangle(0, 0, CARD_W, CARD_H, 0x120a1a, 0.88);
-    const hero = this.add.sprite(0, -64, `${HERO.id}-${variantOf(HERO, 0)}`, 0).setOrigin(36 / 96, 79 / 80).setScale(2);
-    hero.play({ key: `${HERO.id}-${variantOf(HERO, 0)}-${DEMO[w.id]}`, repeat: -1, repeatDelay: 450 });
-    const icon = this.add.image(-88, 30, w.icon.sheet, w.icon.frame).setScale(1.5);
-    const name = this.add.text(-62, 30, w.name.toUpperCase(), uiStyle(26, '#ffffff')).setOrigin(0, 0.5);
-    const mk = (y, label, text, color) => [
-      this.add.text(-CARD_W / 2 + 16, y, label, uiStyle(12, color)).setOrigin(0, 0.5),
-      this.add.text(-CARD_W / 2 + 16, y + 16, text, { ...uiStyle(12, '#dddddd'), wordWrap: { width: CARD_W - 32 }, strokeThickness: 2 }).setOrigin(0, 0),
-    ];
-    const lines = [...mk(72, 'CLIQUE ESQUERDO · FRACO', MOVES[w.id][0], '#ffe27a'), ...mk(130, 'CLIQUE DIREITO · FORTE', MOVES[w.id][1], '#ff9b7a')];
-    c.add([bg, hero, icon, name, ...lines]);
-    c.bg = bg;
+    const c = this.add.container(x, CARD_Y);
+    const bg = this.add.rectangle(0, 0, CARD_W, CARD_H, 0x120a1a, 0.9);
+    const hero = this.add.sprite(0, -60, 'hero', 0).setOrigin(0.5, 56 / 64).setScale(2);
+    const icon = this.add.image(-96, 12, 'items', w.icon).setScale(1.7);
+    const name = this.add.text(-68, 12, w.name.toUpperCase(), uiStyle(28)).setOrigin(0, 0.5);
+    const how = this.add.text(0, 44, HOW[w.id], { ...uiStyle(13, '#dddddd'), wordWrap: { width: CARD_W - 32 }, align: 'center', strokeThickness: 2 }).setOrigin(0.5, 0);
+    const ups = this.add.text(-CARD_W / 2 + 18, 124, 'MELHORIAS:', uiStyle(11, '#ffe27a')).setOrigin(0, 0);
+    const list = this.add.text(-CARD_W / 2 + 18, 140, w.ups.slice(0, 3).map(u => `• ${u[0]}`).join('\n'), { ...uiStyle(11, '#cfc8e8'), wordWrap: { width: CARD_W - 32 }, strokeThickness: 2, lineSpacing: 3 }).setOrigin(0, 0);
+    c.add([bg, hero, icon, name, how, ups, list]);
+    c.bg = bg; c.hero = hero;
     c.setSize(CARD_W, CARD_H).setInteractive({ useHandCursor: true });
     c.on('pointerover', () => { this.index = i; this.refresh(); });
     c.on('pointerdown', p => { if (p.button === 0) { this.index = i; this.confirm(); } });
@@ -67,21 +58,21 @@ export default class SelectScene extends Phaser.Scene {
   confirm() {
     initAudio();
     this.registry.set('weapon', WEAPON_LIST[this.index].id);
-    this.scene.start('Game', { level: 0 });
+    this.scene.start('Hall');
   }
 
   update(time, delta) {
     const c = this.controls;
     c.poll();
-    this.scroll += delta * 0.04;
-    this.parallax.update(this.scroll);
+    this.t += delta / 1000;
+    for (const card of this.cards) card.hero.setFrame(Math.floor(this.t * 2.2) % 2);
     if (c.just('mute')) toggleMute();
     const n = WEAPON_LIST.length;
     if (c.just('left')) { this.index = (this.index + n - 1) % n; this.refresh(); }
     if (c.just('right')) { this.index = (this.index + 1) % n; this.refresh(); }
-    if (c.just('gem1')) { this.index = 0; this.refresh(); }   // 1, 2, 3 escolhem a arma direto
-    if (c.just('gem2')) { this.index = 1; this.refresh(); }
-    if (c.just('gem3')) { this.index = 2; this.refresh(); }
-    if (c.keyJust('confirm')) this.confirm();                  // só o teclado: o clique já confirma pelo card
+    if (c.just('pick1')) { this.index = 0; this.refresh(); }
+    if (c.just('pick2')) { this.index = 1; this.refresh(); }
+    if (c.just('pick3')) { this.index = 2; this.refresh(); }
+    if (c.just('confirm')) this.confirm();
   }
 }

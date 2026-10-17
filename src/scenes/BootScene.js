@@ -1,8 +1,7 @@
-import { LEVELS } from '../config.js';
-import { SHEETS, CHARACTER_SHEETS, IMAGES, ANIMS } from '../assets.js';
+import { SHEETS, IMAGES, ANIMS } from '../assets.js';
 import { uiStyle } from '../systems/ui-style.js';
 
-// Carrega todos os assets e cria as animações.
+// Carrega todos os assets, cria as animações e a textura de luz.
 export default class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
 
@@ -15,9 +14,7 @@ export default class BootScene extends Phaser.Scene {
     this.load.on('loaderror', f => console.error('Falha ao carregar', f.src));
 
     for (const [key, url, frameWidth, frameHeight] of SHEETS) this.load.spritesheet(key, url, { frameWidth, frameHeight });
-    for (const { key, file } of CHARACTER_SHEETS) this.load.spritesheet(key, file, { frameWidth: 96, frameHeight: 80 });
     for (const [key, url] of IMAGES) this.load.image(key, url);
-    for (const lv of LEVELS) this.load.tilemapTiledJSON(lv.key, lv.map);
   }
 
   create() {
@@ -29,6 +26,12 @@ export default class BootScene extends Phaser.Scene {
         repeat: a.repeat ?? -1,
       });
     }
+    // textura de luz: círculo branco que vai sumindo nas bordas (recorta a escuridão do salão)
+    const size = 256, tex = this.textures.createCanvas('light', size, size), ctx = tex.getContext();
+    const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,0.85)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, size, size);
+    tex.refresh();
     this.scene.start('Title');
   }
 }

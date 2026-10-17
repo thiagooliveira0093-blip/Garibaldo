@@ -1,179 +1,175 @@
-import { GAME_W, GAME_H, HIT_DAMAGE } from '../config.js';
-import { FRAME } from '../assets.js';
+import { GAME_W, GAME_H, HERO, RUN, xpNeeded } from '../config.js';
+import { WEAPONS } from '../weapons.js';
+import { PASSIVES } from '../upgrades.js';
 import { uiStyle, FONT } from '../systems/ui-style.js';
-import { GEMS } from '../weapons.js';
 import { isMuted } from '../systems/sfx.js';
 
-const HP_BAR = { x: 34, y: 12, w: 200, h: 20 };
+const HP_BAR = { x: 34, y: 18, w: 220, h: 20 };
+const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
-// HUD desenhado por cima do jogo. Só lê o estado da GameScene.
+// HUD por cima do jogo: vida, XP, tempo, armas e melhorias, chefe, escolha de melhoria e fim de partida.
 export default class UIScene extends Phaser.Scene {
   constructor() { super('UI'); }
 
   create() {
     this.g = this.add.graphics();
-    this.heartIcon = this.add.image(18, 22, 'proj', FRAME.heart).setScale(1.3);
+    this.heart = this.add.image(18, 28, 'items', 11).setScale(0.8);
     this.hpText = this.add.text(HP_BAR.x + HP_BAR.w / 2, HP_BAR.y + HP_BAR.h / 2, '', uiStyle(12)).setOrigin(0.5);
-    this.hpPlayer = null; this.hpShown = 0; this.hpTrail = 0;
-    this.energyText = this.add.text(186, 51, 'ARCANO', uiStyle(12, '#d7c4ff')).setOrigin(0, 0.5);
-    this.slotObjs = []; this.attackPanels = []; this.gems = []; this.slotKey = null;
-    this.rollText = this.add.text(86, 66, 'ROLAR [Shift]', uiStyle(10, '#9fe8ff')).setOrigin(0, 0.5);
-    this.scoreText = this.add.text(GAME_W / 2, 26, '', uiStyle(22, '#ffe27a')).setOrigin(0.5);
-    this.comboText = this.add.text(GAME_W / 2, 50, '', uiStyle(14, '#ff9b3d')).setOrigin(0.5);
-    this.bossName = this.add.text(GAME_W - 334, 44, '', uiStyle(12, '#ffd6ff')).setOrigin(0, 0.5);
-    this.go = this.add.text(GAME_W - 90, GAME_H / 2 - 40, 'GO ➜', uiStyle(34, '#ffe27a')).setOrigin(0.5);
-    this.bannerText = this.add.text(GAME_W / 2, 150, '', uiStyle(34)).setOrigin(0.5);
-    this.overlay = this.add.rectangle(0, 0, GAME_W, GAME_H, 0x000000, 0.55).setOrigin(0);
-    this.big = this.add.text(GAME_W / 2, GAME_H / 2 - 44, '', uiStyle(50)).setOrigin(0.5);
-    this.sub = this.add.text(GAME_W / 2, GAME_H / 2 + 12, '', uiStyle(18)).setOrigin(0.5);
-    this.hint = this.add.text(GAME_W / 2, GAME_H / 2 + 54, '', uiStyle(20, '#ffe27a')).setOrigin(0.5);
+    this.hpShown = 0; this.hpTrail = 0; this.hpOwner = null;
+    this.levelText = this.add.text(14, 54, '', uiStyle(14, '#d9a0ff')).setOrigin(0, 0.5);
+    this.dashText = this.add.text(92, 54, 'ROLAR [Espaço]', uiStyle(10, '#9fe8ff')).setOrigin(0, 0.5);
+    this.timeText = this.add.text(GAME_W / 2, 30, '', uiStyle(24, '#ffe27a')).setOrigin(0.5);
+    this.statText = this.add.text(GAME_W - 14, 22, '', uiStyle(14, '#ffffff')).setOrigin(1, 0.5);
+    this.bossName = this.add.text(GAME_W / 2, 64, '', uiStyle(13, '#ffd6ff')).setOrigin(0.5);
+    this.bannerText = this.add.text(GAME_W / 2, 150, '', uiStyle(32)).setOrigin(0.5);
+    this.hudSig = ''; this.hudObjs = [];
+    this.cardObjs = []; this.cardRef = null; this.hover = -1;
+    this.overlay = this.add.rectangle(0, 0, GAME_W, GAME_H, 0x000000, 0.6).setOrigin(0).setVisible(false);
+    this.big = this.add.text(GAME_W / 2, 150, '', uiStyle(48)).setOrigin(0.5);
+    this.sub = this.add.text(GAME_W / 2, 220, '', { ...uiStyle(18), align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0);
+    this.hint = this.add.text(GAME_W / 2, GAME_H - 70, '', uiStyle(20, '#ffe27a')).setOrigin(0.5);
     this.muteText = this.add.text(GAME_W - 14, GAME_H - 16, '', { fontFamily: FONT, fontSize: '12px', color: '#888888' }).setOrigin(1, 0.5);
   }
 
-  // Barra de vida: enche e esvazia suavemente, com um rastro claro do dano recente.
-  // Divisões a cada HIT_DAMAGE mostram quantos golpes aguenta; fica vermelha e pisca quando baixa.
-  drawHealth(g, p, blink) {
-    const { x, y, w, h } = HP_BAR;
-    if (this.hpPlayer !== p) { this.hpPlayer = p; this.hpShown = this.hpTrail = p.hp; }
-    this.hpShown += (p.hp - this.hpShown) * 0.25;
-    if (p.hp > this.hpTrail) this.hpTrail = p.hp; else this.hpTrail += (p.hp - this.hpTrail) * 0.04;
-    const pct = p.hp / p.maxHp, fill = k => Math.max(0, w * k / p.maxHp);
-    g.fillStyle(0x120a1a).fillRect(x - 2, y - 2, w + 4, h + 4);
-    g.fillStyle(0x2a1a2a).fillRect(x, y, w, h);
-    g.fillStyle(0xffffff, 0.85).fillRect(x, y, fill(this.hpTrail), h);
-    g.fillStyle(pct > 0.5 ? 0x4cd964 : pct > 0.25 ? 0xf5c542 : 0xff4d6d).fillRect(x, y, fill(this.hpShown), h);
-    g.fillStyle(0xffffff, 0.25).fillRect(x, y, fill(this.hpShown), 5);
-    g.fillStyle(0x000000, 0.35);
-    for (let v = HIT_DAMAGE; v < p.maxHp; v += HIT_DAMAGE) g.fillRect(x + (w * v) / p.maxHp - 1, y, 2, h);
-    if (pct <= 0.25 && p.alive && blink) g.lineStyle(2, 0xff4d6d).strokeRect(x - 2, y - 2, w + 4, h + 4);
-    this.hpText.setText(`${Math.ceil(p.hp)} / ${p.maxHp}`);
-  }
-
-  // Painel da arma escolhida, indicadores do ataque fraco (clique esq.) e forte (clique dir.) e os
-  // 3 elementos (teclas 1, 2, 3).
-  buildSlots(weapon) {
-    for (const o of this.slotObjs) o.destroy();
-    this.slotObjs = []; this.slotKey = weapon.id;
-    const small = { fontFamily: FONT, fontSize: '9px', color: '#aaaaaa' };
-    const y = GAME_H - 56;
-    const tag = { sword: 'combo de 3 golpes', bow: 'flecha carregada', ring: 'magia teleguiada' }[weapon.id];
-    this.slotObjs.push(
-      this.add.image(32, y + 22, weapon.icon.sheet, weapon.icon.frame),
-      this.add.text(56, y + 15, weapon.name, uiStyle(14)).setOrigin(0, 0.5),
-      this.add.text(56, y + 31, tag, small).setOrigin(0, 0.5),
-    );
-    this.attackPanels = [
-      { key: 'light', x: 180, y, label: 'FRACO', hint: 'esq. / J' },
-      { key: 'heavy', x: 180 + 92, y, label: 'FORTE', hint: 'dir. / K' },
-    ];
-    for (const a of this.attackPanels) {
-      this.slotObjs.push(
-        this.add.text(a.x + 30, a.y + 14, a.label, uiStyle(12)).setOrigin(0, 0.5),
-        this.add.text(a.x + 30, a.y + 29, a.hint, small).setOrigin(0, 0.5),
-      );
-    }
-    this.gems = GEMS.map((gem, i) => {
-      const x = 180 + 2 * 92 + 8 + i * 32;
-      this.slotObjs.push(
-        this.add.image(x + 14, y + 17, gem.icon.sheet, gem.icon.frame).setBlendMode('ADD'),
-        this.add.text(x + 14, y + 36, gem.key, small).setOrigin(0.5),
-      );
-      return { x, y, gem };
-    });
-  }
-
-  // glifo de mouse (14x22) com o botão esquerdo ou direito aceso
-  mouseGlyph(g, x, y, right, lit) {
-    g.lineStyle(1, 0xffffff, 0.7).strokeRoundedRect(x, y, 14, 22, 5);
-    g.fillStyle(lit ? 0xffe27a : 0x777777).fillRect(right ? x + 7 : x + 1, y + 1, 6, 8);
-    g.fillStyle(0xffffff, 0.5).fillRect(x + 7, y + 1, 1, 9);
-  }
-
   update() {
-    const gs = this.scene.get('Game');
-    const visible = !!(gs && gs.ready && this.scene.isActive('Game'));
+    const hall = this.scene.get('Hall');
+    const visible = !!(hall && hall.ready && this.scene.isActive('Hall'));
     this.cameras.main.setVisible(visible);
     if (!visible) return;
-
-    const p = gs.player, g = this.g;
-    if (this.slotKey !== p.weapon.id) this.buildSlots(p.weapon);
+    const h = hall.hero, g = this.g;
     g.clear();
 
-    const full = p.energy >= 100, blink = Math.floor(gs.elapsed * 8) % 2;
-    this.drawHealth(g, p, blink);
-    g.fillStyle(0x120a1a).fillRect(14, 44, 164, 14);
-    g.fillStyle(full ? (blink ? 0xffffff : 0xe38bff) : 0x9b5bff).fillRect(16, 46, 160 * (p.energy / 100), 10);
-    const label = p.char.special.label;
-    this.energyText.setText(full ? `${label} PRONTO! [L]` : label).setColor(full ? '#ffe27a' : '#d7c4ff');
+    this.drawHealth(g, h);
+    this.drawXp(g, h);
+    this.timeText.setText(fmt(hall.time));
+    this.statText.setText(`caveiras ${h.kills}    ouro ${h.gold}`);
+    this.drawDash(g, h);
+    this.drawLoadout(h);
+    this.drawBoss(g, hall);
+    this.bannerText.setText(hall.bannerText).setAlpha(Phaser.Math.Clamp(hall.bannerT * 2, 0, 1));
+    this.drawCards(hall);
+    this.drawOverlay(hall);
+    this.muteText.setText(isMuted() ? '♪ mudo (M)' : '');
+  }
 
-    // arma escolhida
-    const w = p.weapon, y0 = GAME_H - 56;
-    g.fillStyle(0x000000, 0.45).fillRect(14, y0, 158, 44);
-    g.lineStyle(1, 0xffffff, 0.25).strokeRect(14.5, y0 + 0.5, 157, 43);
+  // barra de vida com rastro do dano recente
+  drawHealth(g, h) {
+    const { x, y, w, hgt = HP_BAR.h } = HP_BAR, hh = HP_BAR.h;
+    if (this.hpOwner !== h) { this.hpOwner = h; this.hpShown = this.hpTrail = h.hp; }
+    this.hpShown += (h.hp - this.hpShown) * 0.25;
+    if (h.hp > this.hpTrail) this.hpTrail = h.hp; else this.hpTrail += (h.hp - this.hpTrail) * 0.04;
+    const pct = h.hp / h.maxHp, fill = k => Math.max(0, w * k / h.maxHp);
+    g.fillStyle(0x120a1a).fillRect(x - 2, y - 2, w + 4, hh + 4);
+    g.fillStyle(0x2a1a2a).fillRect(x, y, w, hh);
+    g.fillStyle(0xffffff, 0.85).fillRect(x, y, fill(this.hpTrail), hh);
+    g.fillStyle(pct > 0.5 ? 0x4cd964 : pct > 0.25 ? 0xf5c542 : 0xff4d6d).fillRect(x, y, fill(this.hpShown), hh);
+    g.fillStyle(0xffffff, 0.25).fillRect(x, y, fill(this.hpShown), 5);
+    if (pct <= 0.25 && h.alive && Math.floor(this.time * 8) % 2) g.lineStyle(2, 0xff4d6d).strokeRect(x - 2, y - 2, w + 4, hh + 4);
+    this.hpText.setText(`${Math.ceil(h.hp)} / ${h.maxHp}`);
+  }
 
-    // ataque fraco e forte: acendem quando em uso e mostram recarga, carga e combo
-    this.attackPanels.forEach(a => {
-      const heavy = a.key === 'heavy';
-      let active = false, fill = 0;                          // fill 0..1 = recarga restante (escurece de baixo para cima)
-      if (w.type === 'melee') active = p.meleeT > 0 && !!p.curStep && !!p.curStep.heavy === heavy;
-      else if (w.type === 'bow') { active = heavy ? p.drawing : p.castT > 0.05 && !p.drawing; if (!heavy && p.cd > 0) fill = Math.min(1, p.cd / w.light.cd); }
-      else if (w.type === 'ring') {
-        active = heavy ? p.novaT > 0 : p.castT > 0.05 && p.novaT <= 0;
-        fill = heavy ? Math.min(1, Math.max(0, p.heavyCd) / w.heavy.cd) : (p.cd > 0 ? Math.min(1, p.cd / w.light.cd) : 0);
-      }
-      g.fillStyle(0x000000, 0.45).fillRect(a.x, a.y, 86, 44);
-      g.lineStyle(active ? 2 : 1, active ? 0xffe27a : 0xffffff, active ? 1 : 0.25).strokeRect(a.x + 0.5, a.y + 0.5, 85, 43);
-      this.mouseGlyph(g, a.x + 8, a.y + 11, heavy, active);
-      if (fill > 0) g.fillStyle(0x000000, 0.55).fillRect(a.x, a.y + 44 - 44 * fill, 86, 44 * fill);
-      if (heavy && w.type === 'bow' && p.drawing) {          // barra de carga do arco
-        const f = Math.min(1, p.charge / w.heavy.maxCharge);
-        g.fillStyle(0x222222).fillRect(a.x + 30, a.y + 36, 50, 4);
-        g.fillStyle(f >= w.heavy.pierceAt ? 0xffffff : 0xffd24a).fillRect(a.x + 30, a.y + 36, 50 * f, 4);
-      }
-      if (!heavy && w.type === 'melee') {                    // em que golpe do combo está
-        for (let k = 0; k < 3; k++) g.fillStyle(p.comboT > 0 && k <= p.comboStep ? 0xffe27a : 0x555555).fillRect(a.x + 30 + k * 16, a.y + 36, 14, 3);
-      }
+  // barra de XP em toda a largura da tela
+  drawXp(g, h) {
+    const k = Phaser.Math.Clamp(h.xp / xpNeeded(h.level), 0, 1);
+    g.fillStyle(0x120a1a).fillRect(0, 0, GAME_W, 10);
+    g.fillStyle(0x7a3bd0).fillRect(0, 0, GAME_W * k, 10);
+    g.fillStyle(0xd9a0ff, 0.6).fillRect(0, 0, GAME_W * k, 3);
+    this.levelText.setText(`NÍVEL ${h.level}`);
+  }
+
+  drawDash(g, h) {
+    const k = 1 - Phaser.Math.Clamp(h.dashCd / HERO.dash.cd, 0, 1);
+    g.fillStyle(0x120a1a).fillRect(14, 62, 70, 8);
+    g.fillStyle(k >= 1 ? 0x9fe8ff : 0x4a6a8a).fillRect(15, 63, 68 * k, 6);
+    this.dashText.setPosition(92, 66).setColor(k >= 1 ? '#9fe8ff' : '#6a7a8a');
+  }
+
+  // armas (com nível) e melhorias passivas, embaixo à esquerda
+  drawLoadout(h) {
+    const sig = h.weapons.map(w => `${w.id}${w.level}`).join(',') + '|' + Object.entries(h.passives).map(([k, v]) => `${k}${v}`).join(',');
+    if (sig === this.hudSig) return;
+    this.hudSig = sig;
+    for (const o of this.hudObjs) o.destroy();
+    this.hudObjs = [];
+    const small = { fontFamily: FONT, fontSize: '10px', color: '#ffffff', stroke: '#120a1a', strokeThickness: 3 };
+    h.weapons.forEach((w, i) => {
+      const x = 14 + i * 56, y = GAME_H - 60;
+      this.hudObjs.push(
+        this.add.rectangle(x, y, 50, 50, 0x000000, 0.5).setOrigin(0).setStrokeStyle(2, WEAPONS[w.id].color),
+        this.add.image(x + 25, y + 25, 'items', WEAPONS[w.id].icon),
+        this.add.text(x + 47, y + 47, `${w.level}`, small).setOrigin(1, 1),
+      );
     });
-    this.gems.forEach(({ x, y, gem }, i) => {
-      const sel = i === p.gem;
-      g.fillStyle(sel ? 0xffffff : 0x000000, sel ? 0.14 : 0.45).fillRect(x, y, 28, 44);
-      g.lineStyle(sel ? 2 : 1, sel ? gem.color : 0xffffff, sel ? 1 : 0.2).strokeRect(x + 0.5, y + 0.5, 27, 43);
+    Object.entries(h.passives).forEach(([id, lv], i) => {
+      const x = 14 + i * 30, y = GAME_H - 96;
+      this.hudObjs.push(
+        this.add.rectangle(x, y, 26, 26, 0x000000, 0.45).setOrigin(0).setStrokeStyle(1, 0xffffff, 0.3),
+        this.add.image(x + 13, y + 13, 'items', PASSIVES[id].icon).setScale(0.7),
+        this.add.text(x + 25, y + 25, `${lv}`, small).setOrigin(1, 1),
+      );
     });
+  }
 
-    // rolamento: barrinha que enche enquanto recarrega
-    const roll = p.char.roll, rk = 1 - Phaser.Math.Clamp(p.rollCd / (roll.time + roll.cd), 0, 1);
-    g.fillStyle(0x120a1a).fillRect(14, 62, 66, 8);
-    g.fillStyle(rk >= 1 ? 0x9fe8ff : 0x4a6a8a).fillRect(15, 63, 64 * rk, 6);
-    this.rollText.setPosition(86, 66).setColor(rk >= 1 ? '#9fe8ff' : '#6a7a8a');
+  drawBoss(g, hall) {
+    const b = hall.boss;
+    if (!b || b.dead) { this.bossName.setText(''); return; }
+    const w = 360, x = (GAME_W - w) / 2, y = 78, k = Phaser.Math.Clamp(b.hp / b.maxHp, 0, 1);
+    g.fillStyle(0x120a1a).fillRect(x - 2, y - 2, w + 4, 16);
+    g.fillStyle(b.hp < b.maxHp * 0.5 ? 0xff3355 : 0xc04bff).fillRect(x, y, w * k, 12);
+    this.bossName.setText(b.def.name).setPosition(GAME_W / 2, y - 12);
+  }
 
-    this.scoreText.setText(String(gs.score).padStart(7, '0'));
-    this.comboText.setText(gs.combo > 1 ? `COMBO x${gs.combo}` : '');
-
-    const boss = gs.enemies.getChildren().find(e => e.kind === 'boss' && !e.dead);
-    if (boss) {
-      const pct = Phaser.Math.Clamp(boss.hp / boss.maxHp, 0, 1);
-      g.fillStyle(0x120a1a).fillRect(GAME_W - 334, 18, 320, 16);
-      g.fillStyle(boss.p2 ? 0xff3355 : 0xc04bff).fillRect(GAME_W - 332, 20, 316 * pct, 12);
-      this.bossName.setText(boss.def.name);
-    } else this.bossName.setText('');
-
-    this.go.setVisible(gs.goT > 0 && !gs.waves.active && Math.floor(gs.goT * 3) % 2 === 0);
-    this.bannerText.setText(gs.bannerText).setAlpha(Phaser.Math.Clamp(gs.bannerT * 2, 0, 1));
-    if (gs.slowT > 0) g.fillStyle(0x78c8ff, 0.08).fillRect(0, 0, GAME_W, GAME_H);
-
-    let big = '', sub = '', hint = '', bigColor = '#ffffff', tint = 0x000000;
-    if (gs.paused) { big = 'PAUSADO'; hint = 'P para continuar'; }
-    else if (gs.state === 'dead') {
-      big = 'VOCÊ CAIU'; bigColor = '#ff4d6d'; tint = 0x300a14;
-      sub = `Pontos: ${gs.score}   ·   Recorde: ${gs.best}`; hint = 'R tentar de novo   ·   T trocar de arma';
-    } else if (gs.state === 'win') {
-      big = 'MISSÃO COMPLETA!'; bigColor = '#ffe27a'; tint = 0x0a1a30;
-      sub = `Pontos: ${gs.score}   ·   Tempo: ${gs.elapsed.toFixed(1)}s   ·   Vida: ${Math.ceil(p.hp)}/${p.maxHp}`; hint = 'R jogar de novo   ·   T trocar de arma';
+  // escolha de melhoria ao subir de nível: 3 cartas (teclas 1 2 3 ou clique)
+  drawCards(hall) {
+    if (hall.cards !== this.cardRef) {
+      for (const o of this.cardObjs) o.destroy();
+      this.cardObjs = []; this.cardRef = hall.cards; this.hover = -1;
+      if (hall.cards) this.buildCards(hall);
     }
-    this.overlay.setVisible(!!big).setFillStyle(tint, 0.6);
-    this.big.setText(big).setColor(bigColor);
+  }
+
+  buildCards(hall) {
+    const cards = hall.cards, W = 230, Hh = 290, gap = 24, total = cards.length * W + (cards.length - 1) * gap;
+    const x0 = (GAME_W - total) / 2, y0 = 130;
+    const veil = this.add.rectangle(0, 0, GAME_W, GAME_H, 0x000000, 0.7).setOrigin(0).setInteractive();
+    const title = this.add.text(GAME_W / 2, 74, `NÍVEL ${hall.hero.level}!`, uiStyle(40, '#ffe27a')).setOrigin(0.5);
+    const sub = this.add.text(GAME_W / 2, 108, 'escolha uma melhoria  ·  teclas 1, 2, 3  ou  clique', uiStyle(14, '#dddddd')).setOrigin(0.5);
+    this.cardObjs.push(veil, title, sub);
+    cards.forEach((c, i) => {
+      const x = x0 + i * (W + gap), cx = x + W / 2;
+      const color = c.kind === 'weapon' ? (WEAPONS[c.id] ? WEAPONS[c.id].color : 0xffffff) : 0x9b5bff;
+      const bg = this.add.rectangle(x, y0, W, Hh, 0x14101f, 0.96).setOrigin(0).setStrokeStyle(3, color);
+      const icon = this.add.image(cx, y0 + 70, 'items', c.icon).setScale(2.4);
+      const tag = c.kind === 'weapon' ? (c.isNew ? 'NOVA ARMA' : 'ARMA') : (c.kind === 'passive' ? 'MELHORIA' : 'ESPECIAL');
+      const t1 = this.add.text(cx, y0 + 22, tag, uiStyle(11, '#aaaaaa')).setOrigin(0.5);
+      const name = this.add.text(cx, y0 + 128, c.name.toUpperCase(), uiStyle(20)).setOrigin(0.5);
+      const lv = this.add.text(cx, y0 + 154, c.kind === 'heal' ? '' : (c.isNew ? 'NOVO' : `Nível ${c.level}`), uiStyle(13, c.isNew ? '#ffe27a' : '#9fe8ff')).setOrigin(0.5);
+      const desc = this.add.text(cx, y0 + 184, c.desc, { ...uiStyle(13, '#e8e0ff'), wordWrap: { width: W - 28 }, align: 'center', strokeThickness: 2 }).setOrigin(0.5, 0);
+      const key = this.add.text(cx, y0 + Hh - 22, `[ ${i + 1} ]`, uiStyle(16, '#ffe27a')).setOrigin(0.5);
+      bg.setInteractive({ useHandCursor: true });
+      bg.on('pointerover', () => { bg.setStrokeStyle(5, 0xffe27a); });
+      bg.on('pointerout', () => { bg.setStrokeStyle(3, color); });
+      bg.on('pointerdown', p => { if (p.button === 0) hall.chooseCard(i); });
+      this.cardObjs.push(bg, icon, t1, name, lv, desc, key);
+    });
+  }
+
+  // pausa e telas de fim de partida
+  drawOverlay(hall) {
+    let big = '', sub = '', hint = '', color = '#ffffff', show = false;
+    if (hall.paused) { show = true; big = 'PAUSADO'; hint = 'P para continuar'; }
+    else if (hall.state === 'dead' || hall.state === 'win') {
+      const r = hall.result;
+      if (r) {
+        show = true;
+        big = r.won ? 'VITÓRIA!' : 'VOCÊ CAIU'; color = r.won ? '#ffe27a' : '#ff4d6d';
+        sub = `Tempo: ${fmt(r.time)}     Nível: ${r.level}     Caveiras: ${r.kills}\nOuro desta partida: ${r.gold}     Ouro guardado: ${r.totalGold}\nMelhor tempo: ${fmt(r.best)}`;
+        hint = 'R jogar de novo   ·   T trocar de arma';
+      }
+    }
+    this.overlay.setVisible(show);
+    this.big.setText(big).setColor(color);
     this.sub.setText(sub);
     this.hint.setText(hint);
-    this.muteText.setText(isMuted() ? '♪ mudo (M)' : '');
   }
 }

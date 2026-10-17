@@ -1,12 +1,9 @@
-import { GAME_W, GAME_H, GRAV } from './config.js';
+import { GAME_W, GAME_H } from './config.js';
 import BootScene from './scenes/BootScene.js';
 import TitleScene from './scenes/TitleScene.js';
 import SelectScene from './scenes/SelectScene.js';
-import GameScene from './scenes/GameScene.js';
+import HallScene from './scenes/HallScene.js';
 import UIScene from './scenes/UIScene.js';
-
-// Abra com ?debug na URL para ver as hitboxes.
-const debug = new URLSearchParams(location.search).has('debug');
 
 window.game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -15,7 +12,6 @@ window.game = new Phaser.Game({
   height: GAME_H,
   pixelArt: true,
   backgroundColor: '#000000',
-  physics: { default: 'arcade', arcade: { gravity: { y: GRAV }, debug } },
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [BootScene, TitleScene, SelectScene, GameScene, UIScene],
+  scene: [BootScene, TitleScene, SelectScene, HallScene, UIScene],
 });

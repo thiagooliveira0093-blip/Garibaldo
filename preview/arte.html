@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prévia da arte</title>
+  <style>
+    body { margin:0; background:#14111f; color:#e9e4ff; font-family:system-ui,sans-serif; padding:16px; }
+    h2 { font-size:13px; margin:14px 0 6px; color:#9a93b8; font-weight:600; }
+    img { image-rendering:pixelated; background:repeating-conic-gradient(#6a7288 0 25%, #5c6479 0 50%) 0 0/16px 16px; display:block; max-width:100%; }
+  </style>
+</head>
+<body>
+  <script>
+    // ?f=sprites/hero.png&z=3 mostra um arquivo de assets/ ampliado; vários: ?f=a.png,b.png
+    const q = new URLSearchParams(location.search);
+    const z = Number(q.get('z')) || 3;
+    for (const f of (q.get('f') || 'sprites/hero.png').split(',')) {
+      const h = document.createElement('h2'); h.textContent = f; document.body.append(h);
+      const i = new Image(); i.src = '../assets/' + f + '?' + Date.now();
+      i.onload = () => { i.style.width = i.naturalWidth * z + 'px'; };
+      document.body.append(i);
+    }
+  </script>
+</body>
+</html>

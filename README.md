@@ -1,33 +1,44 @@
-# Garibaldo — Guerra Arcana
+# Garibaldo — O Salão dos Tormentos
 
-Ação 2D feita em **Phaser 3**, caminhando para o estilo **Dead Cells**: combate com peso, rolamento
-com invulnerabilidade, inimigos que avisam antes de atacar e armas que se encaixam em estilos de jogo.
-(A versão run'n'gun anterior está no histórico do Git.)
+Sobrevivência em hordas feita em **Phaser 3**, no estilo **Halls of Torment** (e Vampire Survivors): visão
+de cima num salão de pedra escuro, hordas cada vez maiores, **armas que atacam sozinhas**, XP, melhorias a
+cada nível e um chefe no fim. (As versões anteriores — run'n'gun e plataforma estilo Dead Cells — estão no
+histórico do Git.)
 
-Você joga com o **Garibaldo** e escolhe **uma arma** antes de começar. Todo ataque é pelo **mouse**:
-**clique esquerdo = ataque FRACO**, **clique direito = ataque FORTE**, e o cursor mira.
+## Como se joga
 
-| Arma | Fraco (clique esquerdo) | Forte (clique direito) |
+- Você é o **Garibaldo**, o mago de capuz. **Só se move e rola**; as armas atacam o inimigo mais próximo.
+- Escolha **uma arma** no começo; as outras aparecem depois como melhorias.
+- Inimigos soltam **gemas de XP** (ande até elas) e às vezes ouro e poções. A cada nível aparecem **3 cartas**:
+  melhorar uma arma, pegar uma arma nova (até 4) ou uma melhoria passiva.
+- Sobreviva até o **Senhor Demônio** chegar (aos 7:00) e derrote-o para vencer.
+- O ouro de cada partida fica guardado no navegador.
+
+| Arma | O que faz | Melhorias |
 |---|---|---|
-| **Espada** | combo de 3 golpes (aperte em sequência; o 3º empurra e atordoa) | golpe pesado e lento: quebra armadura, empurra longe, destrói qualquer tiro |
-| **Arco** | flecha rápida (segure para repetir) | **segure** para carregar e solte: mais dano e velocidade, carga alta atravessa |
-| **Anel** | magia teleguiada (segure para repetir) | **nova** ao redor: empurra, atordoa e destrói tiros |
+| **Espada** | golpeia em arco os inimigos próximos | dano, alcance, golpe também atrás, mais rápida, onda de energia |
+| **Arco** | flechas no inimigo mais próximo | mais flechas, dano, atravessam inimigos, mais rápido |
+| **Anel** | orbes de magia giram ao seu redor e ferem quem tocar | mais orbes, dano, órbita maior, mais rápido, nova periódica |
 
-**Elementos (teclas 1, 2, 3):** Fogo (dano em área), Gelo (deixa lento) e Raio (salta para outro inimigo).
-Valem para todas as armas e mudam a cor do herói.
+**Melhorias passivas:** Vigor (vida), Botas (velocidade), Fúria (dano), Clepsidra (recarga), Ímã (coleta),
+Sabedoria (XP), Escudo (armadura), Renovação (regeneração) e os **elementos**, que valem para todas as armas:
+**Chama** (queima), **Geada** (deixa lento) e **Tempestade** (o dano salta para outro inimigo).
 
-**Combate**
-- **Rolamento** (Shift/C): invulnerável no começo, cancela qualquer ataque e atravessa inimigos. Rolar por
-  dentro de um ataque é **esquiva perfeita** (câmera lenta + energia); rolar por dentro de um inimigo o deixa
-  de costas por um instante: atacar pelas costas causa **golpe crítico**.
-- **Sem dano por encostar:** só ataques machucam. Soldados e magos mostram um brilho antes de atacar; um
-  golpe forte durante o brilho **interrompe** o ataque (brutamontes e chefe têm armadura).
-- **Habilidade** (L): Explosão Arcana; a barra enche ao acertar e desviar.
-- Impacto: pausa curta no golpe, empurrão, número de dano.
+**Inimigos:** Carniçal (corre até você), Morcego (voa em zigue-zague), Esqueleto (mantém distância e atira
+flechas), Bruto (lento e muito forte), elites (douradas, aparecem depois dos 3 minutos) e o chefe, que atira
+anéis de orbes, leques e invoca carniçais. Aos poucos vêm eventos em que um anel de inimigos cerca você.
 
-A vida aparece numa **barra** no canto superior esquerdo (com um rastro claro do dano recente e uma
-divisão a cada golpe). Cada golpe ou tiro inimigo tira `HIT_DAMAGE` (20) e cada coração recupera
-`HEAL` (20), ambos em `src/config.js`; a vida máxima fica em `src/characters.js`.
+## Controles
+
+| Ação | Teclas |
+|---|---|
+| Mover | WASD ou setas |
+| Rolar (invulnerável por um instante) | Espaço, Shift ou C |
+| Escolher melhoria | 1, 2, 3 ou clique na carta |
+| Pausar / Mudo | P / M |
+| Jogar de novo / trocar de arma (fim da partida) | R / T |
+
+Para remapear, edite `src/systems/controls.js`.
 
 ## Rodar
 
@@ -36,130 +47,48 @@ npm install
 npm start
 ```
 
-Abra http://localhost:5173. Para ver as hitboxes, use http://localhost:5173/?debug.
-
-Para publicar (itch.io, GitHub Pages etc.), envie a pasta inteira **sem** `node_modules/`
-(`index.html`, `vendor/`, `src/`, `assets/`).
+Abra http://localhost:5173. Para publicar (itch.io, GitHub Pages etc.), envie a pasta inteira **sem**
+`node_modules/` (`index.html`, `vendor/`, `src/`, `assets/`).
 
 ## Estrutura
 
 ```
 assets/
-  sprites/   spritesheets (player, inimigos, chefe, projéteis, explosão)
-  tiles/     tileset das fases (tiles.png)
-  bg/        fundos com parallax (sky, far, mid — 960x540, repetem na horizontal)
-  maps/      fases no formato do Tiled (.tmj)
+  sprites/   hero, ghoul, skeleton, brute, bat, boss, items, props, explosion, spark (PNG)
+  tiles/     floor (4 lajes), wall
 src/
-  config.js          TODOS os números de balanceamento (vida, dano, velocidade, poderes...)
-  assets.js          lista de sprites + animações (quadros e velocidade)
-  scenes/            Boot (carrega), Title, Game (jogo), UI (HUD)
-  entities/          Player, Enemy (base), enemies.js (soldado, mago, drone, brutamontes), Boss
-  systems/           controles, ondas, efeitos, som, parallax
-tools/               geradores dos placeholders e da fase 1
+  config.js        balanceamento: herói, inimigos, ritmo das hordas, eventos, XP
+  weapons.js       as 3 armas automáticas e o que cada nível melhora
+  upgrades.js      melhorias passivas e o sorteio das 3 cartas
+  assets.js        lista de sprites e animações
+  scenes/          Boot, Title, Select (arma), Hall (o jogo), UI (HUD, cartas, fim)
+  entities/        Hero, Enemy (carniçal, esqueleto, bruto, morcego, chefe)
+  systems/         weapon-system, spawner, hall-map (salão), light (escuridão), effects, sfx, save, controls
+tools/             geradores da arte placeholder (npm run arte)
 ```
 
-## Trocar os sprites
+## Ajustar o jogo
 
-Os PNGs em `assets/` são **placeholders** gerados por código. Para colocar a arte final,
-basta substituir o arquivo mantendo o **tamanho do quadro** e a **ordem dos quadros**.
-Todos os personagens são desenhados **virados para a direita**, com os **pés no centro da
-borda de baixo** do quadro (o jogo espelha sozinho).
+- **Dificuldade:** `src/config.js`: `spawnRate` (inimigos por segundo), `spawnMix` (quais tipos e quando),
+  `hpScale`, `EVENTS` (anéis de inimigos), `RUN.bossAt` (quando o chefe chega), `HERO` (vida, velocidade).
+- **Armas e melhorias:** `src/weapons.js` (`base` = nível 1, `ups` = o que cada nível muda) e `src/upgrades.js`.
+- **Inimigos:** `ENEMIES` em `src/config.js` (vida, velocidade, dano ao encostar, XP) e o comportamento em
+  `src/entities/Enemy.js` (`chaser`, `flyer`, `archer`, `boss`).
 
-| Arquivo | Quadro | Quadros (índice → animação) |
+## Trocar a arte
+
+Os PNGs são **placeholders** gerados por código; substitua mantendo o tamanho do quadro e a ordem:
+
+| Arquivo | Quadro | Ordem |
 |---|---|---|
-| `garibaldo_fire.png`, `garibaldo_ice.png`, `garibaldo_bolt.png` | 96x80, 7 colunas | um sheet por elemento (olhos, fecho e magia mudam de cor), mesmo layout: 0-3 parado · 4-5 agachado · 6-7 dano · 8-13 correndo · 14 pulo · 15 queda · 16-21 anel · 22-23 rolamento · 24-27 morte · 28-33 golpe de espada · 34-39 anel na diagonal · 40-45 anel para cima · 46-51 arco · 52-57 arco na diagonal · 58-63 arco para cima. Pés em x=36, y=79. O jogo desenha o herói em **1,5x** (`SCALE` em `src/entities/Player.js`) e os inimigos comuns em 1,25x (`scale` em `src/config.js`). |
-| `proj3.png` | 32x32, 8 colunas | 0-1 flecha · 2-3 flecha de fogo · 17 ícone da espada · 18 ícone do arco · 19 ícone do anel |
-| `fireball.png` | 32x32 | bola de fogo do jogador (cabeça em x=21, y=17; rastro para a esquerda) |
-| `grunt.png` | 48x48 | 0-1 parado · 2-5 andando · 6-7 atacando |
-| `caster.png` | 48x64 | 0-3 parado · 4-5 conjurando |
-| `drone.png` | 48x32 | 0-3 voando · 4-5 atacando |
-| `heavy.png` | 80x80 | 0-1 parado · 2-5 andando · 6-7 atacando |
-| `boss.png` | 160x192, 5 colunas | 0-3 parado · 4-5 atacando · 6-9 fúria |
-| `projectiles.png` | 32x32, 8 colunas | 0-1 fogo · 2-3 gelo · 4-5 raio · 6 coração · 7 mana · 8-9 orbe roxo · 10-11 orbe vermelho · 12-13 morteiro · 14-15 meteoro · 16-17 onda de chão · 19-21 orbe na mão (fogo/gelo/raio) · 22 brilho branco |
-| `explosion.png` | 64x64 | 0-5 |
+| `hero.png` | 64x64, 8 colunas | vista × 8 + k: vista 0 = frente, 1 = costas, 2 = lado (o jogo espelha); k 0-1 parado, 2-7 andando · 24-26 dano · 27 caído. Pés em (32, 56) |
+| `ghoul.png`, `brute.png` | 48x48 / 64x64 | vista × 4 + k (k = 4 quadros de andar) |
+| `skeleton.png` | 48x48 | vista × 5 + k (k 0-3 andar, 4 atirar) |
+| `bat.png` | 32x32 | 4 quadros de voo |
+| `boss.png` | 128x128 | 0-3 parado, 4-5 atacando |
+| `items.png` | 32x32, 8 colunas | 0-2 gemas · 3-6 moeda · 7 poção · 8-10 ícones das armas · 11-21 ícones de melhorias e elementos · 22-29 projéteis (ver `ITEM` em `src/assets.js`) |
+| `props.png` | 64x96, 8 colunas | 0 pilar · 1-4 braseiro · 5 ossos · 6 urna · 7 túmulo |
+| `floor.png` | 256x64 | 4 lajes de 64x64 |
 
-Quer **mais quadros** ou outro tamanho? Edite `src/assets.js`: o tamanho do quadro fica em
-`SHEETS` e os quadros de cada animação em `ANIMS`. Se o tamanho do personagem mudar, ajuste a
-hitbox (`body`) em `src/config.js`.
-
-Ferramentas sugeridas: **Aseprite** (pago) ou **LibreSprite** (grátis). Exporte como
-*sprite sheet* em grade, sem espaçamento entre quadros.
-
-`npm run placeholders` regenera **só os arquivos que não existem** — sua arte não é
-sobrescrita (use `-- --force` se quiser voltar aos placeholders).
-
-## Editar e criar fases (Tiled)
-
-Instale o [Tiled](https://www.mapeditor.org/) e abra `assets/maps/fase1.tmj`.
-O mapa usa tiles de 32x32 e precisa destas camadas (os nomes importam):
-
-| Camada | Tipo | Para quê |
-|---|---|---|
-| `decoracao` | tiles | enfeites sem colisão (opcional) |
-| `chao` | tiles | chão sólido |
-| `plataformas` | tiles | plataformas que só colidem **por cima** (dá pra pular através) |
-| `objetos` | objetos | player, ondas e inimigos |
-
-**Objetos** na camada `objetos`:
-
-- **Player** — ponto com nome `player`. É onde o jogador começa.
-- **Onda** — retângulo com nome `onda`. A borda esquerda dele é onde a câmera **trava**
-  (estilo Metal Slug) até todos os inimigos da onda morrerem. Propriedades: `id` (int) e
-  `chefe` (bool, opcional).
-- **Inimigo** — ponto com **classe/tipo** `grunt`, `caster`, `drone`, `heavy` ou `boss`.
-  Propriedades: `onda` (int, o `id` da onda) e `atraso` (float, segundos depois que a onda
-  começa). A posição Y é onde ficam os pés; para o `drone`, é a altura em que ele voa.
-
-Fase sem chefe termina quando o jogador limpa todas as ondas e chega no fim do mapa. Fase com
-chefe termina quando ele morre.
-
-**Nova fase:** crie `assets/maps/fase2.tmj` (copiar a fase 1 é o jeito mais rápido), mude a
-propriedade `nome` do mapa e acrescente em `LEVELS` no `src/config.js`:
-
-```js
-export const LEVELS = [
-  { key: 'fase1', map: 'assets/maps/fase1.tmj' },
-  { key: 'fase2', map: 'assets/maps/fase2.tmj' },
-];
-```
-
-Vida, pontos e energia passam de uma fase para a outra.
-
-## Novo inimigo
-
-1. Coloque o spritesheet em `assets/sprites/` e registre em `SHEETS` e `ANIMS` (`src/assets.js`),
-   usando os nomes `<sheet>-idle`, `<sheet>-walk`, `<sheet>-attack`.
-2. Adicione os status em `ENEMIES` (`src/config.js`).
-3. Crie a classe em `src/entities/enemies.js` (estenda `Enemy`, implemente `behave(dt)` e
-   `muzzle()`) e registre em `TYPES`.
-4. Use o novo tipo nos objetos do Tiled.
-
-## Controles
-
-| Ação | Teclas |
-|---|---|
-| Mover | A / D ou setas |
-| Pular | Espaço, W ou seta cima |
-| Ataque fraco | **clique esquerdo** (ou J) |
-| Ataque forte | **clique direito** (ou K) |
-| Mirar arco e anel | cursor do mouse (sem mouse, atira para onde está olhando) |
-| Rolar | Shift ou C |
-| Agachar / descer da plataforma | S / S + Espaço |
-| Elemento | 1, 2, 3 ou Q / E |
-| Habilidade | L, V ou F (barra cheia) |
-| Pausar / Mudo | P / M |
-| Escolher outra arma (ao morrer ou vencer) | T |
-
-Ao atacar com o mouse, o Garibaldo vira para o lado do cursor. Para remapear, edite
-`src/systems/controls.js`.
-
-## Ajustar armas e herói
-
-- `src/weapons.js`: as 3 armas, cada uma com o ataque fraco (`light`) e o forte (`heavy`): dano, alcance,
-  tempos, empurrão, atordoamento, recarga. A espada tem o combo em `light.combo`. Também os elementos (`GEMS`).
-- `src/characters.js`: o Garibaldo (vida, velocidade, rolamento, habilidade, quadros do sprite de cada arma).
-- Mouse e teclado: `src/systems/controls.js`.
-
-Sprites: `assets/sprites/garibaldo_<elemento>.png` (96x80, 64 quadros) e `proj3.png` (flechas e ícones
-das armas). `npm run mago` e `npm run armas` geram os placeholders; arquivos que já existem não são
-sobrescritos (use `-- --force`).
+`npm run arte` regenera os placeholders; arquivos que já existem não são sobrescritos (use `-- --force`
+em cada script de `tools/` para forçar).

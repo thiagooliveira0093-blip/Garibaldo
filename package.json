@@ -1,15 +1,12 @@
 {
   "name": "garibaldo",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "Run'n'gun 2D estilo Metal Slug com poderes — Phaser 3",
+  "description": "Sobrevivência em hordas estilo Halls of Torment, com armas automáticas — Phaser 3",
   "scripts": {
     "start": "node server.js",
     "postinstall": "node -e \"const fs=require('fs');fs.mkdirSync('vendor',{recursive:true});fs.copyFileSync('node_modules/phaser/dist/phaser.min.js','vendor/phaser.min.js')\"",
-    "placeholders": "node tools/gerar-placeholders.mjs",
-    "mago": "node tools/gerar-garibaldo.mjs",
-    "armas": "node tools/gerar-armas.mjs",
-    "fase1": "node tools/gerar-fase1.mjs"
+    "arte": "node tools/gerar-heroi.mjs && node tools/gerar-inimigos.mjs && node tools/gerar-cenario.mjs && node tools/gerar-itens.mjs && node tools/gerar-efeitos.mjs"
   },
   "dependencies": {
     "phaser": "3.80.1"
