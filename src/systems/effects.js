@@ -70,7 +70,8 @@ export default class Effects {
 
   ghost(sprite) {
     const g = this.s.add.image(sprite.x, sprite.y, sprite.texture.key, sprite.frame.name)
-      .setOrigin(sprite.originX, sprite.originY).setFlipX(sprite.flipX).setTintFill(0x7fb0ff).setAlpha(0.5).setDepth(sprite.depth - 1);
+      .setOrigin(sprite.originX, sprite.originY).setScale(sprite.scaleX, sprite.scaleY).setFlipX(sprite.flipX)
+      .setTintFill(0x7fb0ff).setAlpha(0.5).setDepth(sprite.depth - 1);
     this.s.tweens.add({ targets: g, alpha: 0, duration: 250, onComplete: () => g.destroy() });
   }
 

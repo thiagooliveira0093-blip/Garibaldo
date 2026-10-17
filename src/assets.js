@@ -33,6 +33,7 @@ export const IMAGES = [
 // Layout dos 3 personagens (96x80), igual em todos: a chave final é `<personagem>-<variante>-<nome>`.
 // 0-3 parado · 4-5 agachado · 6-7 dano · 8-13 correndo · 14 pulo · 15 queda
 // 16-21 ataque à distância (shoot) · 22-23 dash · 24-27 morte · 28-33 golpe corpo a corpo (melee)
+// 34-39 atirando na diagonal (shootDiag) · 40-45 atirando para cima (shootUp)
 const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
 const characterAnims = char => [
   ['idle', [0, 1, 2, 3], 5], ['run', range(8, 13), 13], ['jump', [14], 1], ['fall', [15], 1],
@@ -40,6 +41,8 @@ const characterAnims = char => [
   ['dead', range(24, 27), 6, 0],
   ['shoot', range(16, 21), char.rates.shoot, 0],
   ['melee', range(28, 33), char.rates.melee, 0],
+  ['shootDiag', range(34, 39), char.rates.shoot, 0],   // atirando mirando na diagonal
+  ['shootUp', range(40, 45), char.rates.shoot, 0],     // atirando mirando para cima
 ];
 
 export const ANIMS = [

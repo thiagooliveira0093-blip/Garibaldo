@@ -461,8 +461,8 @@ export default class GameScene extends Phaser.Scene {
   // Golpe corpo a corpo (espada espiritual, espadada ou adaga): acerta quem está à frente
   // e destrói tiros pequenos (arriscado, mas recompensa com energia).
   meleeStrike(p) {
-    const m = p.char.melee, pw = p.weapon, w = m.reach;
-    const box = new Rectangle(p.facing > 0 ? p.x - 6 : p.x - w + 6, p.y - 70, w, m.height);
+    const S = p.scaleX, m = p.char.melee, pw = p.weapon, w = m.reach * S, h = m.height * S; // o alcance acompanha o tamanho do herói
+    const box = new Rectangle(p.facing > 0 ? p.x - 6 * S : p.x - w + 6 * S, p.y - h - 4, w, h);
     let hits = 0;
     for (const e of this.enemies.getChildren().slice()) {
       if (e.dead || e.spawnT > 0 || !Intersects.RectangleToRectangle(box, e.bodyRect())) continue;

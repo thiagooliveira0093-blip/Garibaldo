@@ -26,10 +26,11 @@ export const DESTRUCTIBLE = new Set(['orb', 'mortar']);
 // ---------- Inimigos ----------
 // body = [largura, altura, offsetX, offsetY] da hitbox dentro do quadro do sprite
 export const ENEMIES = {
-  grunt:  { sheet: 'grunt',  hp: 4,   speed: 95, score: 100,  body: [24, 44, 12, 4],    gravity: true },
-  caster: { sheet: 'caster', hp: 6,   speed: 0,  score: 200,  body: [26, 52, 11, 12],   gravity: false, showHp: true },
-  drone:  { sheet: 'drone',  hp: 3,   speed: 0,  score: 150,  body: [30, 22, 9, 6],     gravity: false },
-  heavy:  { sheet: 'heavy',  hp: 16,  speed: 45, score: 400,  body: [50, 64, 15, 16],   gravity: true,  showHp: true },
+  // scale: tamanho em relação ao sprite (os heróis são 1,5x; o chefe fica no tamanho original)
+  grunt:  { sheet: 'grunt',  hp: 4,   speed: 95, score: 100,  body: [24, 44, 12, 4],    gravity: true,  scale: 1.25 },
+  caster: { sheet: 'caster', hp: 6,   speed: 0,  score: 200,  body: [26, 52, 11, 12],   gravity: false, showHp: true, scale: 1.25 },
+  drone:  { sheet: 'drone',  hp: 3,   speed: 0,  score: 150,  body: [30, 22, 9, 6],     gravity: false, scale: 1.25 },
+  heavy:  { sheet: 'heavy',  hp: 16,  speed: 45, score: 400,  body: [50, 64, 15, 16],   gravity: true,  showHp: true, scale: 1.25 },
   boss:   { sheet: 'boss',   hp: 200, speed: 0,  score: 5000, body: [120, 150, 20, 40], gravity: false, name: 'GOLEM ARCANO' },
 };
 

@@ -56,7 +56,7 @@ borda de baixo** do quadro (o jogo espelha sozinho).
 
 | Arquivo | Quadro | Quadros (índice → animação) |
 |---|---|---|
-| `garibaldo_fire.png`, `garibaldo_ice.png`, `garibaldo_bolt.png`, `warrior.png`, `archer.png` | 96x80, 7 colunas | Mago (um sheet por poder: olhos, fecho e magia mudam de cor), Guerreiro e Arqueiro. Mesmo layout nos 3: 0-3 parado · 4-5 agachado · 6-7 dano · 8-13 correndo · 14 pulo · 15 queda · 16-21 ataque à distância · 22-23 dash · 24-27 morte · 28-33 golpe corpo a corpo. Pés em x=36, y=79. |
+| `garibaldo_fire.png`, `garibaldo_ice.png`, `garibaldo_bolt.png`, `warrior.png`, `archer.png` | 96x80, 7 colunas | Mago (um sheet por poder: olhos, fecho e magia mudam de cor), Guerreiro e Arqueiro. Mesmo layout nos 3: 0-3 parado · 4-5 agachado · 6-7 dano · 8-13 correndo · 14 pulo · 15 queda · 16-21 ataque à distância · 22-23 dash · 24-27 morte · 28-33 golpe corpo a corpo · 34-39 atirando na diagonal · 40-45 atirando para cima. Pés em x=36, y=79. O jogo desenha os heróis em **1,5x** (`SCALE` em `src/entities/Player.js`) e os inimigos comuns em 1,25x (`scale` em `src/config.js`). |
 | `proj3.png` | 32x32, 8 colunas | 0-1 flecha · 2-3 flecha de fogo · 4 lança · 5-8 machado · 9-10 tremor · 11-16 ícones do HUD |
 | `fireball.png` | 32x32 | bola de fogo do jogador (cabeça em x=21, y=17; rastro para a esquerda) |
 | `grunt.png` | 48x48 | 0-1 parado · 2-5 andando · 6-7 atacando |

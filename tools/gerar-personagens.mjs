@@ -173,20 +173,29 @@ function archer(img, o = {}) {
 
   // braço e arma
   const S = [sx + 4, shY + 4];
+  // o arco inteiro gira em torno do ombro quando o arqueiro mira na diagonal ou para cima
+  const A = P.aim || 0, ca = Math.cos(A), sa = Math.sin(A);
+  const T = (x, y) => [S[0] + (x - S[0]) * ca - (y - S[1]) * sa, S[1] + (x - S[0]) * sa + (y - S[1]) * ca];
+  const L = (p, q, c, t) => { const a = T(p[0], p[1]), b = T(q[0], q[1]); img.line(a[0], a[1], b[0], b[1], c, t); };
   const bow = (bx, by, pull, nock) => {
     const top = [bx - 1, by - 15], bot = [bx - 1, by + 15], mid = [bx + 5, by];
-    img.line(top[0], top[1], mid[0] - 1, by - 7, AC.wood, 2); img.line(mid[0] - 1, by - 7, mid[0], by, AC.woodL, 3);
-    img.line(mid[0], by, mid[0] - 1, by + 7, AC.woodL, 3); img.line(mid[0] - 1, by + 7, bot[0], bot[1], AC.wood, 2);
+    L(top, [mid[0] - 1, by - 7], AC.wood, 2); L([mid[0] - 1, by - 7], [mid[0], by], AC.woodL, 3);
+    L([mid[0], by], [mid[0] - 1, by + 7], AC.woodL, 3); L([mid[0] - 1, by + 7], bot, AC.wood, 2);
     const nx = bx - pull; // corda puxada
-    img.line(top[0], top[1], nx, by, alpha(AC.string, 0.9), 1); img.line(nx, by, bot[0], bot[1], alpha(AC.string, 0.9), 1);
-    if (nock) { img.line(nx, by, bx + 12, by, AC.shaft, 1); img.poly([[bx + 12, by - 2], [bx + 16, by], [bx + 12, by + 2]], AC.steel); img.rect(nx, by - 2, 4, 1, AC.fletch); img.rect(nx, by + 1, 4, 1, AC.fletch); }
-    return nx;
+    L(top, [nx, by], alpha(AC.string, 0.9), 1); L([nx, by], bot, alpha(AC.string, 0.9), 1);
+    if (nock) {
+      L([nx, by], [bx + 12, by], AC.shaft, 1);
+      img.poly([T(bx + 12, by - 2), T(bx + 16, by), T(bx + 12, by + 2)], AC.steel);
+      L([nx, by - 2], [nx + 4, by - 2], AC.fletch, 1); L([nx, by + 1], [nx + 4, by + 1], AC.fletch, 1);
+    }
+    return T(nx, by);
   };
   if (P.pose === 'draw') {
     const by = S[1] + 2, bx = S[0] + 12;
-    img.line(S[0], S[1], bx - 2, by, AC.green, 4); img.circle(bx - 1, by, 2.2, AC.skin);                              // braço da frente segura o arco
-    const nx = bow(bx, by, 3 + P.draw * 7, P.arrow);
-    img.line(S[0], S[1] + 1, nx, by, AC.greenD, 3); img.circle(nx, by, 2, AC.skin);                                  // braço de trás puxa a corda
+    const fh = T(bx - 1, by), fh2 = T(bx - 2, by);
+    img.line(S[0], S[1], fh2[0], fh2[1], AC.green, 4); img.circle(fh[0], fh[1], 2.2, AC.skin);                              // braço da frente segura o arco
+    const [nx, ny] = bow(bx, by, 3 + P.draw * 7, P.arrow);
+    img.line(S[0], S[1] + 1, nx, ny, AC.greenD, 3); img.circle(nx, ny, 2, AC.skin);                                  // braço de trás puxa a corda
   } else if (P.pose === 'stab') {
     const dx = Math.cos(P.sa), dy = Math.sin(P.sa), H = [S[0] + dx * 9, S[1] + dy * 9];
     if (P.trail) arcTrail(img, S, P.trail[0], P.trail[1], 14, 28, AC.steel, hex('#ffffff'));
@@ -233,6 +242,9 @@ const frames = (draw, lying, kit) => {
   add('dead2', im => draw(im, { lean: -8, bob: 9, crouch: 14, cape: 3, plume: 6, hair: 7, fF: [8, 0], fB: [-8, 0], hit: true }));
   add('dead3', im => lying(im));
   kit.melee.forEach((p, i) => add(`melee${i}`, im => draw(im, { fF: [6, 0], fB: [-5, 0], ...p })));
+  // ataque à distância mirando na diagonal (34-39) e para cima (40-45)
+  kit.rangedDiag.forEach((p, i) => add(`rangedd${i}`, im => draw(im, { fF: [6, 0], fB: [-5, 0], ...p })));
+  kit.rangedUp.forEach((p, i) => add(`rangedu${i}`, im => draw(im, { fF: [6, 0], fB: [-5, 0], ...p })));
   return f;
 };
 
@@ -246,7 +258,11 @@ function render(fr, file) {
 }
 
 // Guerreiro: arremesso de machado (ranged) e espadada (melee)
+const throwAim = sas => [[0.3, 1, -2], [0.8, 1, -3], [1, 1, -1], [1, 1, 2], [1, 0, 4], [0.6, 0, 2]]
+  .map(([ext, axe, lean], i) => ({ arm: 'throw', sa: sas[i], ext, axe, lean, ...(i === 1 ? { plume: 3 } : {}), ...(i >= 3 ? { plume: 4 + (i - 3) } : {}) }));
 render(frames(warrior, warriorLying, {
+  rangedDiag: throwAim([-2.1, -2.4, -1.9, -1.1, -0.8, -0.5]),
+  rangedUp: throwAim([-2.2, -2.5, -2.1, -1.8, -1.55, -1.25]),
   ranged: [
     { arm: 'throw', sa: -2.0, ext: 0.3, axe: 1, lean: -2 },
     { arm: 'throw', sa: -2.3, ext: 0.8, axe: 1, lean: -3, plume: 3 },
@@ -266,7 +282,13 @@ render(frames(warrior, warriorLying, {
 }), 'sprites/warrior.png');
 
 // Arqueiro: puxa o arco (ranged) e golpeia com adaga (melee)
+const drawAim = aim => [
+  { draw: 0.1, arrow: true, lean: -1 }, { draw: 0.4, arrow: true, lean: -1 }, { draw: 0.8, arrow: true, lean: -2 },
+  { draw: 1, arrow: true, lean: -2, hair: 3 }, { draw: 0.1, arrow: false, lean: 1, hair: 4 }, { draw: 0, arrow: false, lean: 0 },
+].map(p => ({ pose: 'draw', aim, ...p }));
 render(frames(archer, archerLying, {
+  rangedDiag: drawAim(-0.7),
+  rangedUp: drawAim(-1.4),
   ranged: [
     { pose: 'draw', draw: 0.1, arrow: true, lean: -1 },
     { pose: 'draw', draw: 0.4, arrow: true, lean: -1 },

@@ -14,7 +14,7 @@ class Grunt extends Enemy {
     });
     this.anim(this.tele > 0 ? 'attack' : this.walking ? 'walk' : 'idle');
   }
-  muzzle() { return { x: this.x + this.facing * 21, y: this.y - 34 }; }
+  muzzle() { return { x: this.x + this.facing * 21 * this.sc, y: this.y - 34 * this.sc }; }
 }
 
 // Mago: aparece numa plataforma, leque de 3 orbes; a cada 3 ataques um orbe vermelho lento.
@@ -36,7 +36,7 @@ class Caster extends Enemy {
     });
     this.anim(this.tele > 0 ? 'attack' : 'idle');
   }
-  muzzle() { return { x: this.x + this.facing * 17, y: this.y - 40 }; }
+  muzzle() { return { x: this.x + this.facing * 17 * this.sc, y: this.y - 40 * this.sc }; }
 }
 
 // Drone: desce do céu até a altura marcada no Tiled e fica rondando o player.
@@ -59,7 +59,7 @@ class Drone extends Enemy {
     if (this.y > 60) this.enemyFire(dt, 0.45, 1.8, 2.8, () => { const m = this.muzzle(); this.aim(m.x, m.y, 290, 'orb'); });
     this.anim(this.tele > 0 ? 'attack' : 'idle');
   }
-  muzzle() { return { x: this.x, y: this.y - 2 }; }
+  muzzle() { return { x: this.x, y: this.y - 2 * this.sc }; }
 }
 
 // Brutamontes: alterna onda de chão (pule!) e 3 morteiros na sua posição.
@@ -74,16 +74,16 @@ class Heavy extends Enemy {
     this.enemyFire(dt, 0.8, 2.3, 3.1, () => {
       const s = this.scene;
       this.volley++;
-      if (this.volley % 2) s.groundWave(this.x + this.facing * 36, this.facing);
+      if (this.volley % 2) s.groundWave(this.x + this.facing * 36 * this.sc, this.facing);
       else {
         const px = this.player.x;
-        for (const o of [-110, 0, 110]) s.lob(this.x, this.y - 72, Phaser.Math.Clamp(px + o, s.camX + 20, s.camX + GAME_W - 20), 1.05);
+        for (const o of [-110, 0, 110]) s.lob(this.x, this.y - 72 * this.sc, Phaser.Math.Clamp(px + o, s.camX + 20, s.camX + GAME_W - 20), 1.05);
       }
     });
-    this.bang.setVisible(this.tele > 0).setPosition(this.x, this.y - 92);
+    this.bang.setVisible(this.tele > 0).setPosition(this.x, this.y - 92 * this.sc);
     this.anim(this.tele > 0 ? 'attack' : this.walking ? 'walk' : 'idle');
   }
-  muzzle() { return { x: this.x + this.facing * 34, y: this.y - 42 }; }
+  muzzle() { return { x: this.x + this.facing * 34 * this.sc, y: this.y - 42 * this.sc }; }
   kill() { this.bang.setVisible(false); super.kill(); }
   destroy(fromScene) { if (this.bang) this.bang.destroy(); super.destroy(fromScene); }
 }

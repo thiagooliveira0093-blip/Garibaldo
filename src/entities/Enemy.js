@@ -11,7 +11,8 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
     scene.enemies.add(this); // o grupo reseta o corpo; por isso a configuração vem depois
-    this.setOrigin(0.5, 1).setDepth(9);
+    this.sc = def.scale || 1;
+    this.setOrigin(0.5, 1).setScale(this.sc).setDepth(9);
     const [w, h, ox, oy] = def.body;
     this.body.setSize(w, h).setOffset(ox, oy);
     this.body.setAllowGravity(def.gravity);

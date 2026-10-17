@@ -20,8 +20,9 @@ const POW = {
 
 const C = {
   line: hex('#0b0812'),
-  cloak: hex('#1d1a2b'), cloakD: hex('#0f0d19'), cloakL: hex('#3a3553'), cloakR: hex('#5a5380'),
-  lining: hex('#4a1226'), shadow: hex('#050309'),
+  // capa mais clara que o preto original, para não sumir contra o cenário escuro
+  cloak: hex('#312d4f'), cloakD: hex('#1b1830'), cloakL: hex('#58527f'), cloakR: hex('#9f99dc'),
+  lining: hex('#6a1a38'), shadow: hex('#050309'),
   skin: hex('#e9b98a'), skinD: hex('#b98558'),
   leather: hex('#4a3020'), boot: hex('#17111c'), tunic: hex('#2b2540'),
   cover: hex('#6b1c34'), coverD: hex('#3e0f1f'), pages: hex('#e6dcc2'), pagesD: hex('#b9ad90'),
@@ -187,7 +188,8 @@ function hero(img, o = {}) {
     const B = [H[0] + dx * 4, H[1] + dy * 4 + 3];
     book(img, B[0], B[1], P.orb > 0);
     if (P.orb > 0) {
-      const O = [B[0] + dx * (2 + P.orb * 0.6), B[1] - 7 - P.orb * 0.5];
+      // a magia flutua acima do livro; ao mirar para cima/diagonal, sobe junto com a direção do braço
+      const O = [B[0] + dx * (2 + P.orb * 0.6), B[1] - 7 - P.orb * 0.5 + dy * (4 + P.orb * 0.4)];
       wisps(img, [S[0] + 1, S[1]], [B[0], B[1] - 2], P.orbT);
       wisps(img, [B[0], B[1] - 3], O, P.orbT + 2, 2);
       flame(img, O[0], O[1], P.orb, P.orbT, P.tail);
@@ -268,6 +270,11 @@ const slash = [
   { sa: 0.8, blade: 8, lean: 1, hood: 1 },
 ];
 slash.forEach((p, i) => add(`slash${i}`, im => hero(im, { arm: 'slash', fF: [6, 0], fB: [-5, 0], flare: 1, cape: 3, ...p })));
+
+// mira na diagonal (34-39) e para cima (40-45): o mesmo lançamento com o braço apontando para cima
+const aimed = aims => cast.map((p, i) => ({ ...p, aim: aims[i], tail: 0 }));
+aimed([0.5, 0.05, -0.35, -0.75, -0.75, -0.3]).forEach((p, i) => add(`castd${i}`, im => hero(im, { fF: [6, 0], fB: [-5, 0], flare: 1, cape: 3, ...p })));
+aimed([0.1, -0.55, -1.05, -1.45, -1.45, -1.0]).forEach((p, i) => add(`castu${i}`, im => hero(im, { fF: [6, 0], fB: [-5, 0], flare: 1, cape: 3, ...p })));
 
 // ---------- pós-processamento por quadro ----------
 function outline(img, fx, fy, fw, fh) {
