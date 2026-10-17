@@ -39,6 +39,30 @@ export default class Effects {
     this.s.tweens.add({ targets: c, radius: small ? 70 : 1100, alpha: 0, duration: small ? 250 : 600, onComplete: () => c.destroy() });
   }
 
+  // Portal em anel no chão (Explosão Arcana): anéis giratórios e fios de energia subindo.
+  portal(x, y, color) {
+    const g = this.s.add.graphics().setDepth(15).setPosition(x, y);
+    const st = { r: 0.15, a: 1, rot: 0 };
+    const draw = () => {
+      g.clear();
+      for (let k = 0; k < 3; k++) {
+        const rx = 130 * st.r * (1 + k * 0.14), ry = 34 * st.r * (1 + k * 0.14);
+        g.lineStyle(7 - k * 2, k === 0 ? 0xffffff : color, st.a * (k === 0 ? 1 : 0.55));
+        g.strokeEllipse(0, 0, rx * 2, ry * 2);
+      }
+      const rx = 130 * st.r, ry = 34 * st.r;
+      g.lineStyle(2, 0xffffff, st.a);
+      for (let i = 0; i < 14; i++) { // fagulhas orbitando o anel
+        const a = st.rot + i * 0.45, px = Math.cos(a) * rx, py = Math.sin(a) * ry;
+        g.beginPath(); g.moveTo(px, py); g.lineTo(px, py - 8 - (i % 3) * 6); g.strokePath();
+      }
+    };
+    draw();
+    this.s.tweens.add({ targets: st, r: 1, a: 0, rot: 4, duration: 750, ease: 'Cubic.easeOut', onUpdate: draw, onComplete: () => g.destroy() });
+    this.burst(x, y, color, 24, 260, -120, 700);
+    this.burst(x, y, 0xffffff, 12, 200, -160, 600);
+  }
+
   floater(x, y, text, color = '#ffffff') {
     const t = this.s.add.text(x, y, text, uiStyle(14, color)).setOrigin(0.5).setDepth(20);
     this.s.tweens.add({ targets: t, y: y - 40, alpha: 0, duration: 1000, ease: 'Quad.easeIn', onComplete: () => t.destroy() });

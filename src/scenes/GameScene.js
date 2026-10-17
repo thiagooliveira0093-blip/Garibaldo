@@ -1,5 +1,5 @@
 import {
-  GAME_W, GAME_H, LEVELS, ENEMIES, SHOTS, DESTRUCTIBLE, FIRE_SPLASH, ICE_SLOW,
+  GAME_W, GAME_H, LEVELS, ENEMIES, SHOTS, DESTRUCTIBLE, FIRE_SPLASH, ICE_SLOW, POWERS,
   GRAZE, PERFECT_DODGE, SLOW_FACTOR,
 } from '../config.js';
 import { FRAME } from '../assets.js';
@@ -432,6 +432,7 @@ export default class GameScene extends Phaser.Scene {
     const p = this.player;
     p.energy = 0;
     this.fx.ring(p.x, p.y - 24, 0xe3b8ff);
+    this.fx.portal(p.x, p.y - 4, POWERS[p.power].color);
     for (const s of this.eShots.getChildren()) if (s.visible) this.fx.burst(s.x, s.y, 0xe8d7ff, 4, 150, 0, 400);
     this.score += this.eShots.countActive(true) * 10;
     this.eShots.clear(true, true);

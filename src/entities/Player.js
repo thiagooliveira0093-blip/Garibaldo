@@ -108,7 +108,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     const pw = POWERS[this.power];
     this.cd = pw.cd;
     const sh = this.shoulder(), d = this.aimDir();
-    const ox = sh.x + d.x * 24, oy = sh.y + d.y * 24;
+    // a magia sai da orbe que flutua acima do grimório (~8px acima do ombro)
+    const ox = sh.x + d.x * 24, oy = sh.y - 8 + d.y * 24;
     // animação de lançar magia (só em pé no chão; agachado/no ar mantém a pose)
     if (this.onGround && !this.crouch) { this.castT = CAST_TIME; this.playAnim('cast', true); }
     const base = Math.atan2(d.y, d.x);

@@ -24,8 +24,33 @@ const C = {
   lining: hex('#4a1226'), shadow: hex('#050309'),
   skin: hex('#e9b98a'), skinD: hex('#b98558'),
   leather: hex('#4a3020'), boot: hex('#17111c'), tunic: hex('#2b2540'),
+  cover: hex('#6b1c34'), coverD: hex('#3e0f1f'), pages: hex('#e6dcc2'), pagesD: hex('#b9ad90'),
   ...POW.fire,
 };
+
+// ---------- grimório e fios de energia ----------
+function book(img, x, y, open) {
+  if (open) {
+    img.rect(x - 5, y + 1, 10, 3, C.cover); img.rect(x - 5, y + 3, 10, 1, C.coverD);   // capa
+    img.rect(x - 4, y - 2, 4, 3, C.pages); img.rect(x, y - 3, 4, 4, C.pages);          // páginas abertas
+    img.rect(x - 4, y, 4, 1, C.pagesD); img.rect(x, y, 4, 1, C.pagesD);
+    img.rect(x - 1, y - 3, 1, 5, C.coverD);                                             // lombada
+  } else {
+    img.rect(x - 4, y - 1, 8, 5, C.cover); img.rect(x - 4, y + 3, 8, 1, C.coverD);
+    img.rect(x - 3, y - 1, 6, 1, C.pages); img.rect(x - 1, y + 1, 2, 1, C.fire3);
+  }
+}
+// fio de energia ondulando de a até b
+function wisps(img, a, b, t, amp = 3) {
+  const n = 14, dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1, px = -dy / len, py = dx / len;
+  let prev = null;
+  for (let i = 0; i <= n; i++) {
+    const u = i / n, off = Math.sin(u * Math.PI * 3 + t * 1.3) * amp * Math.sin(u * Math.PI);
+    const p = [a[0] + dx * u + px * off, a[1] + dy * u + py * off];
+    if (prev) img.line(prev[0], prev[1], p[0], p[1], alpha(i % 2 ? C.fire3 : C.white, 0.9), 1);
+    prev = p;
+  }
+}
 
 // ---------- chama / orbe de magia (cores do poder atual) ----------
 function flame(img, x, y, r, t = 0, tail = 0) {
@@ -131,7 +156,15 @@ function hero(img, o = {}) {
     img.line(S[0], S[1] - 1, H[0], H[1] - 1, C.cloakL, 1);
     img.rect(H[0] - 2, H[1] - 2, 4, 4, C.leather);
     img.circle(H[0] + dx * 2.5, H[1] + dy * 2.5, 2.2, C.skin);
-    if (P.orb > 0) flame(img, H[0] + dx * (3 + P.orb), H[1] + dy * (3 + P.orb) - 1, P.orb, P.orbT, P.tail);
+    // grimório na mão; a magia flutua acima dele, ligada por fios de energia
+    const B = [H[0] + dx * 4, H[1] + dy * 4 + 3];
+    book(img, B[0], B[1], P.orb > 0);
+    if (P.orb > 0) {
+      const O = [B[0] + dx * (2 + P.orb * 0.6), B[1] - 7 - P.orb * 0.5];
+      wisps(img, [S[0] + 1, S[1]], [B[0], B[1] - 2], P.orbT);
+      wisps(img, [B[0], B[1] - 3], O, P.orbT + 2, 2);
+      flame(img, O[0], O[1], P.orb, P.orbT, P.tail);
+    }
   }
 }
 
