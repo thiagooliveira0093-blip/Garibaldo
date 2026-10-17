@@ -23,6 +23,18 @@ export const POWERS = [
 export const FIRE_SPLASH = { radius: 70, dmg: 1.5 };
 export const ICE_SLOW = { time: 2.2, factor: 0.45 };
 
+// ---------- Espada espiritual (corpo a corpo) ----------
+export const MELEE = {
+  time: 0.34,        // duração da animação
+  cd: 0.42,          // intervalo entre golpes
+  hitAt: 0.12,       // segundos até o golpe acertar (quadro do corte)
+  reach: 64, height: 66,
+  dmg: 5, bossDmg: 6,
+  energy: 3,         // energia Arcana por inimigo acertado
+  moveFactor: 0.35,  // velocidade de movimento durante o golpe
+  breaks: ['orb', 'big', 'mortar'], // tiros que a espada destrói
+};
+
 // ---------- Tiros inimigos ----------
 // Roxos (orb, mortar) podem ser destruídos pelo Raio. Vermelhos (big) e meteoros não.
 export const SHOTS = {

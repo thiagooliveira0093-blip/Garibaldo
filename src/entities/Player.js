@@ -1,4 +1,4 @@
-import { GAME_W, RUN, CRAWL, JUMP, DASH_SPEED, DASH_TIME, DASH_CD, POWERS, PLAYER_HP } from '../config.js';
+import { GAME_W, RUN, CRAWL, JUMP, DASH_SPEED, DASH_TIME, DASH_CD, POWERS, PLAYER_HP, MELEE } from '../config.js';
 import { sfx } from '../systems/sfx.js';
 
 // Quadro 96x80. O ponto de origem (pés) fica em x=36, y=79: a hitbox é centrada nele,
@@ -19,7 +19,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
     Object.assign(this, {
       facing: 1, hp: PLAYER_HP, maxHp: PLAYER_HP, iframes: 0, dashT: 0, dashCd: 0, dashDodged: false,
-      dropT: 0, cd: 0, castT: 0, power: 0, energy: 0, crouch: false, aimAngle: 0, moving: false, ghostT: 0, alive: true, t: 0,
+      dropT: 0, cd: 0, castT: 0, meleeT: 0, meleeCd: 0, meleeHit: true, power: 0, energy: 0, crouch: false, aimAngle: 0, moving: false, ghostT: 0, alive: true, t: 0,
     });
   }
 
@@ -45,6 +45,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.t += dt;
     this.iframes = Math.max(0, this.iframes - dt);
     this.dashCd -= dt; this.cd -= dt; this.dropT -= dt; this.castT -= dt;
+    this.meleeT -= dt; this.meleeCd -= dt;
 
     const left = c.held('left'), right = c.held('right'), up = c.held('up'), dn = c.held('down');
     const move = (right ? 1 : 0) - (left ? 1 : 0);
@@ -56,7 +57,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     if (c.just('p3')) this.setPower(2);
 
     const onGround = this.onGround;
-    this.setCrouch(dn && onGround && this.dashT <= 0 && !up);
+    this.setCrouch(dn && onGround && this.dashT <= 0 && this.meleeT <= 0 && !up);
 
     if (this.dashT > 0) {
       this.dashT -= dt;
@@ -68,7 +69,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     } else {
       if (move) this.facing = move;
       this.moving = move !== 0;
-      this.setVelocityX(move * (this.crouch ? CRAWL : RUN));
+      this.setVelocityX(move * (this.crouch ? CRAWL : RUN) * (this.meleeT > 0 ? MELEE.moveFactor : 1));
 
       if (c.just('jump') && onGround) {
         if (dn && this.onPlatform()) { this.dropT = 0.25; this.setCrouch(false); } // descer da plataforma
@@ -79,7 +80,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       if (c.just('dash') && this.dashCd <= 0) {
         if (move) this.facing = move;
         this.setCrouch(false);
-        this.dashT = DASH_TIME; this.dashCd = DASH_CD; this.dashDodged = false; this.castT = 0;
+        this.dashT = DASH_TIME; this.dashCd = DASH_CD; this.dashDodged = false; this.castT = 0; this.meleeT = 0;
         sfx('dash');
       }
     }
@@ -94,7 +95,16 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     else if (dn && !onGround) this.aimAngle = Math.PI / 2;
     else this.aimAngle = 0;
 
-    if (c.held('shoot') && this.cd <= 0 && this.dashT <= 0) this.fire();
+    // espada espiritual: o golpe acerta no quadro do corte, não no início da animação
+    if (c.just('melee') && this.meleeCd <= 0 && this.dashT <= 0 && this.meleeT <= 0) {
+      this.setCrouch(false);
+      this.meleeT = MELEE.time; this.meleeCd = MELEE.cd; this.meleeHit = false; this.castT = 0;
+      this.playAnim('slash', true);
+      sfx('slash');
+    }
+    if (this.meleeT > 0 && !this.meleeHit && MELEE.time - this.meleeT >= MELEE.hitAt) { this.meleeHit = true; s.meleeStrike(this); }
+
+    if (c.held('shoot') && this.cd <= 0 && this.dashT <= 0 && this.meleeT <= 0) this.fire();
     if (c.just('special') && this.energy >= 100) s.special();
 
     this.updateAnim();
@@ -135,6 +145,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     if (!this.alive) anim = 'player-dead';
     else if (this.iframes > 1.0) anim = 'player-hurt';
     else if (this.dashT > 0) anim = 'player-dash';
+    else if (this.meleeT > 0) anim = 'player-slash';
     else if (this.castT > 0 && this.onGround && !this.crouch) anim = 'player-cast';
     else if (!this.onGround) anim = this.body.velocity.y < 0 ? 'player-jump' : 'player-fall';
     else if (this.crouch) anim = this.moving ? 'player-crawl' : 'player-crouch';

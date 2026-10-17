@@ -42,8 +42,8 @@ borda de baixo** do quadro (o jogo espelha sozinho).
 
 | Arquivo | Quadro | Quadros (índice → animação) |
 |---|---|---|
-| `player.png` | 48x48, 8 colunas | 0-3 parado · 8-13 correndo · 16-17 pulo · 18-19 caindo · 24-25 agachado · 26-29 rastejando · 32-33 dash · 34 dano · 35 morto |
-| `arm.png` | 16x8 | braço que gira com a mira (ombro na esquerda) |
+| `garibaldo_fire.png`, `garibaldo_ice.png`, `garibaldo_bolt.png` | 96x80, 7 colunas | um sheet por poder (olhos, fecho e magia mudam de cor). 0-3 parado · 4-5 agachado · 6-7 dano · 8-13 correndo · 14 pulo · 15 queda · 16-21 lançar magia · 22-23 dash · 24-27 morte · 28-33 espada espiritual. Pés em x=36, y=79. |
+| `fireball.png` | 32x32 | bola de fogo do jogador (cabeça em x=21, y=17; rastro para a esquerda) |
 | `grunt.png` | 48x48 | 0-1 parado · 2-5 andando · 6-7 atacando |
 | `caster.png` | 48x64 | 0-3 parado · 4-5 conjurando |
 | `drone.png` | 48x32 | 0-3 voando · 4-5 atacando |
@@ -115,6 +115,7 @@ Vida, pontos e energia passam de uma fase para a outra.
 | Mover | A / D ou setas |
 | Pular | Espaço ou X |
 | Atirar (segure) | J ou Z |
+| Espada espiritual (corpo a corpo) | F ou H |
 | Mirar cima / diagonal | W ou seta cima (+ direção) |
 | Agachar / atirar pra baixo no ar | S ou seta baixo |
 | Descer da plataforma | baixo + Espaço |

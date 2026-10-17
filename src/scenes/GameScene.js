@@ -1,5 +1,5 @@
 import {
-  GAME_W, GAME_H, LEVELS, ENEMIES, SHOTS, DESTRUCTIBLE, FIRE_SPLASH, ICE_SLOW, POWERS,
+  GAME_W, GAME_H, LEVELS, ENEMIES, SHOTS, DESTRUCTIBLE, FIRE_SPLASH, ICE_SLOW, POWERS, MELEE,
   GRAZE, PERFECT_DODGE, SLOW_FACTOR,
 } from '../config.js';
 import { FRAME } from '../assets.js';
@@ -425,6 +425,32 @@ export default class GameScene extends Phaser.Scene {
     this.score += PERFECT_DODGE.score;
     this.fx.floater(p.x, p.y - 64, `ESQUIVA PERFEITA! +${PERFECT_DODGE.energy}`, '#9fe8ff');
     sfx('dodge');
+  }
+
+  // Espada espiritual: corta os inimigos à frente e destrói tiros pequenos (arriscado, mas recompensa)
+  meleeStrike(p) {
+    const w = MELEE.reach, pw = POWERS[p.power];
+    const box = new Rectangle(p.facing > 0 ? p.x - 6 : p.x - w + 6, p.y - 70, w, MELEE.height);
+    let hits = 0;
+    for (const e of this.enemies.getChildren().slice()) {
+      if (e.dead || e.spawnT > 0 || !Intersects.RectangleToRectangle(box, e.bodyRect())) continue;
+      hits++;
+      const c = e.body.center;
+      this.damageEnemy(e, e.kind === 'boss' ? MELEE.bossDmg : MELEE.dmg);
+      p.energy = Math.min(100, p.energy + MELEE.energy);
+      if (pw.kind === 'ice') e.slowT = ICE_SLOW.time;
+      this.fx.burst(c.x, c.y, pw.color, 10, 240, 100, 400);
+    }
+    for (const s of this.eShots.getChildren().slice()) {
+      if (!s.visible || !MELEE.breaks.includes(s.kind)) continue;
+      if (!Intersects.CircleToRectangle(new Circle(s.x, s.y, s.radius), box)) continue;
+      hits++;
+      this.fx.burst(s.x, s.y, pw.color, 6, 180, 0, 350);
+      p.energy = Math.min(100, p.energy + 2);
+      this.score += 10;
+      s.destroy();
+    }
+    if (hits) { this.fx.shake(4); sfx('hit'); }
   }
 
   // Explosão Arcana: limpa todos os tiros inimigos e causa dano em tudo na tela

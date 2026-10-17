@@ -35,6 +35,7 @@ const PLAYER_ANIMS = [
   ['idle', [0, 1, 2, 3], 5], ['run', [8, 9, 10, 11, 12, 13], 13], ['jump', [14], 1], ['fall', [15], 1],
   ['crouch', [4, 5], 3], ['crawl', [4, 5], 8], ['dash', [22, 23], 16], ['hurt', [6, 7], 6],
   ['dead', [24, 25, 26, 27], 6, 0], ['cast', [16, 17, 18, 19, 20, 21], 22, 0],
+  ['slash', [28, 29, 30, 31, 32, 33], 18, 0],   // espada espiritual
 ];
 export const PLAYER_KINDS = ['fire', 'ice', 'bolt'];
 

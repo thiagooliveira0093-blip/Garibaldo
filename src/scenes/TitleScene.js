@@ -21,6 +21,7 @@ export default class TitleScene extends Phaser.Scene {
       ['Mover', 'A / D  ou  setas'],
       ['Pular', 'Espaço  ou  X'],
       ['Atirar poder (segure)', 'J  ou  Z'],
+      ['Espada espiritual', 'F  ou  H'],
       ['Mirar cima / diagonal', 'W  ou  seta cima'],
       ['Agachar (desvia tiro baixo)', 'S  ou  seta baixo'],
       ['Descer da plataforma', 'baixo + Espaço'],
@@ -29,8 +30,8 @@ export default class TitleScene extends Phaser.Scene {
       ['Explosão Arcana', 'L  ou  V (barra cheia)'],
     ];
     lines.forEach(([a, b], i) => {
-      this.add.text(cx - 20, 200 + i * 23, a, uiStyle(15, '#dddddd')).setOrigin(1, 0.5).setDepth(6);
-      this.add.text(cx + 20, 200 + i * 23, b, uiStyle(15, '#9fe8ff')).setOrigin(0, 0.5).setDepth(6);
+      this.add.text(cx - 20, 190 + i * 22, a, uiStyle(15, '#dddddd')).setOrigin(1, 0.5).setDepth(6);
+      this.add.text(cx + 20, 190 + i * 22, b, uiStyle(15, '#9fe8ff')).setOrigin(0, 0.5).setDepth(6);
     });
     this.add.text(cx, 420, 'Fogo explode em área · Gelo perfura e deixa lento · Raio destrói tiros ROXOS', uiStyle(13, '#ffb98a')).setOrigin(0.5).setDepth(6);
     this.add.text(cx, 440, 'Passar raspando nos tiros e dar dash através deles enche a barra Arcana', uiStyle(13, '#ffb98a')).setOrigin(0.5).setDepth(6);

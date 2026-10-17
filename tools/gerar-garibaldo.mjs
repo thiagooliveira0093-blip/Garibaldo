@@ -40,6 +40,33 @@ function book(img, x, y, open) {
     img.rect(x - 3, y - 1, 6, 1, C.pages); img.rect(x - 1, y + 1, 2, 1, C.fire3);
   }
 }
+// ---------- espada espiritual ----------
+function blade(img, H, ang, L) {
+  if (L <= 0) return;
+  const dx = Math.cos(ang), dy = Math.sin(ang), px = -dy, py = dx;
+  const g = [H[0] + dx * 3, H[1] + dy * 3], tip = [H[0] + dx * (L + 4), H[1] + dy * (L + 4)];
+  img.poly([[g[0] + px * 5, g[1] + py * 5], [tip[0] + dx * 3, tip[1] + dy * 3], [g[0] - px * 5, g[1] - py * 5]], alpha(C.fire, 0.28)); // aura
+  img.poly([[g[0] + px * 2.5, g[1] + py * 2.5], tip, [g[0] - px * 2.5, g[1] - py * 2.5]], alpha(C.fire2, 0.85));                        // lâmina etérea
+  img.poly([[g[0] + px, g[1] + py], [tip[0] - dx * 2, tip[1] - dy * 2], [g[0] - px, g[1] - py]], C.white);                              // fio brilhante
+  img.line(H[0] + dx * 2 + px * 4, H[1] + dy * 2 + py * 4, H[0] + dx * 2 - px * 4, H[1] + dy * 2 - py * 4, C.fire3, 2);                 // guarda espectral
+  for (let k = 1; k <= 3; k++) img.rect(H[0] + dx * (L * k / 4) + px * (k % 2 ? 4 : -4), H[1] + dy * (L * k / 4) + py * (k % 2 ? 4 : -4), 1.5, 1.5, C.fire3);
+}
+// rastro em arco do golpe, centrado no ombro
+function arcTrail(img, S, a0, a1, rIn, rOut) {
+  const n = 12, outer = [], inner = [];
+  for (let i = 0; i <= n; i++) {
+    const a = a0 + ((a1 - a0) * i) / n;
+    outer.push([S[0] + Math.cos(a) * rOut, S[1] + Math.sin(a) * rOut]);
+    inner.push([S[0] + Math.cos(a) * rIn, S[1] + Math.sin(a) * rIn]);
+  }
+  // alpha < 0.35 para o brilho ficar translúcido (o pós-processamento solidifica acima disso)
+  img.poly([...outer, ...inner.slice().reverse()], alpha(C.fire2, 0.3));
+  for (let i = Math.floor(n * 0.45); i < n; i++) {
+    img.line(outer[i][0], outer[i][1], outer[i + 1][0], outer[i + 1][1], alpha(C.fire3, 0.95), 2);
+    img.line(inner[i][0], inner[i][1], inner[i + 1][0], inner[i + 1][1], alpha(C.fire2, 0.3), 1);
+  }
+}
+
 // fio de energia ondulando de a até b
 function wisps(img, a, b, t, amp = 3) {
   const n = 14, dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1, px = -dy / len, py = dx / len;
@@ -165,6 +192,17 @@ function hero(img, o = {}) {
       wisps(img, [B[0], B[1] - 3], O, P.orbT + 2, 2);
       flame(img, O[0], O[1], P.orb, P.orbT, P.tail);
     }
+  } else if (P.arm === 'slash') {
+    // golpe de espada espiritual: o braço sai do manto empunhando a lâmina, com rastro em arco
+    const dx = Math.cos(P.sa), dy = Math.sin(P.sa), H = [S[0] + dx * 11, S[1] + dy * 11];
+    if (P.trail) arcTrail(img, S, P.trail[0], P.trail[1], 30, 40);
+    img.poly([[S[0] - 4, S[1] - 4], [S[0] + 3, S[1] - 4], [S[0] + 4, S[1] + 6], [S[0] - 4, S[1] + 7]], C.lining);
+    img.line(S[0] - 3, S[1] - 4, S[0] - 3, S[1] + 7, C.cloakD, 1);
+    img.line(S[0], S[1], H[0], H[1], C.cloak, 4);
+    img.line(S[0], S[1] - 1, H[0], H[1] - 1, C.cloakL, 1);
+    img.rect(H[0] - 2, H[1] - 2, 4, 4, C.leather);
+    img.circle(H[0], H[1], 2.2, C.skin);
+    blade(img, H, P.sa, P.blade);
   }
 }
 
@@ -219,6 +257,17 @@ add('dead0', im => hero(im, { lean: -4, bob: 1, crouch: 2, cape: 6, hood: 4, eye
 add('dead1', im => hero(im, { lean: -5, bob: 4, crouch: 9, cape: 4, hood: 5, eyeShut: true, flare: 2 }));
 add('dead2', im => hero(im, { lean: -8, bob: 9, crouch: 14, cape: 3, hood: 6, eyeShut: true, flare: 4, fF: [8, 0], fB: [-8, 0] }));
 add('dead3', im => heroLying(im));
+
+// espada espiritual (28-33): prepara → ergue → corta → arco largo → segue → dissolve
+const slash = [
+  { sa: -2.3, blade: 18, lean: -2, hood: 2 },
+  { sa: -1.75, blade: 26, lean: -1, hood: 1, cape: 4 },
+  { sa: -0.95, blade: 27, lean: 2, hood: 3, cape: 6, trail: [-1.85, -0.95] },
+  { sa: 0.1, blade: 27, lean: 4, hood: 4, cape: 8, trail: [-1.95, 0.1] },
+  { sa: 0.85, blade: 22, lean: 4, hood: 3, cape: 7, trail: [-0.1, 0.85] },
+  { sa: 0.8, blade: 8, lean: 1, hood: 1 },
+];
+slash.forEach((p, i) => add(`slash${i}`, im => hero(im, { arm: 'slash', fF: [6, 0], fB: [-5, 0], flare: 1, cape: 3, ...p })));
 
 // ---------- pós-processamento por quadro ----------
 function outline(img, fx, fy, fw, fh) {
