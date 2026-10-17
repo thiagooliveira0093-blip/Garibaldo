@@ -2,13 +2,16 @@
 // Para trocar a arte: substitua o PNG mantendo o tamanho do quadro e a ordem dos quadros,
 // ou ajuste os números aqui (frameWidth/frameHeight e a lista "frames" de cada animação).
 
+import { CHARACTERS } from './characters.js';
+
+// Sheets dos personagens (96x80), definidos em characters.js. Chave: `<personagem>-<variante>`.
+export const CHARACTER_SHEETS = Object.values(CHARACTERS).flatMap(char =>
+  Object.entries(char.sheets).map(([variant, file]) => ({ key: `${char.id}-${variant}`, file, char, variant })));
+
 // [chave, arquivo, larguraDoQuadro, alturaDoQuadro]
 export const SHEETS = [
-  // um sheet do Garibaldo por poder: olhos, fecho e magia na mão mudam de cor
-  ['player-fire', 'assets/sprites/garibaldo_fire.png', 96, 80],
-  ['player-ice',  'assets/sprites/garibaldo_ice.png',  96, 80],
-  ['player-bolt', 'assets/sprites/garibaldo_bolt.png', 96, 80],
   ['fireball',  'assets/sprites/fireball.png',    32, 32],
+  ['proj3',     'assets/sprites/proj3.png',       32, 32],
   ['grunt',     'assets/sprites/grunt.png',       48, 48],
   ['caster',    'assets/sprites/caster.png',      48, 64],
   ['drone',     'assets/sprites/drone.png',       48, 32],
@@ -19,7 +22,6 @@ export const SHEETS = [
 ];
 
 export const IMAGES = [
-  ['arm',    'assets/sprites/arm.png'],
   ['spark',  'assets/sprites/spark.png'],
   ['tiles',  'assets/tiles/tiles.png'],
   ['bg_sky', 'assets/bg/sky.png'],
@@ -28,20 +30,21 @@ export const IMAGES = [
 ];
 
 // repeat: -1 = loop, 0 = toca uma vez
-// Garibaldo (96x80), igual nos 3 sheets (fire/ice/bolt); a chave final é `player-<poder>-<nome>`.
+// Layout dos 3 personagens (96x80), igual em todos: a chave final é `<personagem>-<variante>-<nome>`.
 // 0-3 parado · 4-5 agachado · 6-7 dano · 8-13 correndo · 14 pulo · 15 queda
-// 16-21 lançar magia · 22-23 dash · 24-27 morte
-const PLAYER_ANIMS = [
-  ['idle', [0, 1, 2, 3], 5], ['run', [8, 9, 10, 11, 12, 13], 13], ['jump', [14], 1], ['fall', [15], 1],
+// 16-21 ataque à distância (shoot) · 22-23 dash · 24-27 morte · 28-33 golpe corpo a corpo (melee)
+const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+const characterAnims = char => [
+  ['idle', [0, 1, 2, 3], 5], ['run', range(8, 13), 13], ['jump', [14], 1], ['fall', [15], 1],
   ['crouch', [4, 5], 3], ['crawl', [4, 5], 8], ['dash', [22, 23], 16], ['hurt', [6, 7], 6],
-  ['dead', [24, 25, 26, 27], 6, 0], ['cast', [16, 17, 18, 19, 20, 21], 22, 0],
-  ['slash', [28, 29, 30, 31, 32, 33], 18, 0],   // espada espiritual
+  ['dead', range(24, 27), 6, 0],
+  ['shoot', range(16, 21), char.rates.shoot, 0],
+  ['melee', range(28, 33), char.rates.melee, 0],
 ];
-export const PLAYER_KINDS = ['fire', 'ice', 'bolt'];
 
 export const ANIMS = [
-  ...PLAYER_KINDS.flatMap(kind => PLAYER_ANIMS.map(([name, frames, rate, repeat]) => (
-    { key: `player-${kind}-${name}`, sheet: `player-${kind}`, frames, rate, ...(repeat === undefined ? {} : { repeat }) }
+  ...CHARACTER_SHEETS.flatMap(({ key, char, variant }) => characterAnims(char).map(([name, frames, rate, repeat]) => (
+    { key: `${char.id}-${variant}-${name}`, sheet: key, frames, rate, ...(repeat === undefined ? {} : { repeat }) }
   ))),
 
   { key: 'grunt-idle',    sheet: 'grunt', frames: [0, 1], rate: 4 },
@@ -72,6 +75,13 @@ export const ANIMS = [
   { key: 'shot-mortar',   sheet: 'proj', frames: [12, 13], rate: 10 },
   { key: 'shot-meteor',   sheet: 'proj', frames: [14, 15], rate: 12 },
   { key: 'shot-wave',     sheet: 'proj', frames: [16, 17], rate: 14 },
+
+  // armas do guerreiro e do arqueiro (proj3.png)
+  { key: 'shot-arrow',    sheet: 'proj3', frames: [0, 1], rate: 10 },
+  { key: 'shot-firearrow', sheet: 'proj3', frames: [2, 3], rate: 14 },
+  { key: 'shot-spear',    sheet: 'proj3', frames: [4], rate: 1 },
+  { key: 'shot-axe',      sheet: 'proj3', frames: [5, 6, 7, 8], rate: 22 },
+  { key: 'shot-quake',    sheet: 'proj3', frames: [9, 10], rate: 12 },
 ];
 
 // Quadros avulsos em projectiles.png

@@ -20,21 +20,21 @@ export default class TitleScene extends Phaser.Scene {
     const lines = [
       ['Mover', 'A / D  ou  setas'],
       ['Pular', 'Espaço  ou  X'],
-      ['Atirar poder (segure)', 'J  ou  Z'],
-      ['Espada espiritual', 'F  ou  H'],
+      ['Atirar (segure)', 'J  ou  Z'],
+      ['Golpe corpo a corpo', 'F  ou  H'],
       ['Mirar cima / diagonal', 'W  ou  seta cima'],
       ['Agachar (desvia tiro baixo)', 'S  ou  seta baixo'],
       ['Descer da plataforma', 'baixo + Espaço'],
       ['Dash invencível', 'K / Shift / C'],
-      ['Trocar poder', 'Q / E  ou  1 2 3'],
-      ['Explosão Arcana', 'L  ou  V (barra cheia)'],
+      ['Trocar arma', 'Q / E  ou  1 2 3'],
+      ['Especial', 'L  ou  V (barra cheia)'],
     ];
     lines.forEach(([a, b], i) => {
       this.add.text(cx - 20, 190 + i * 22, a, uiStyle(15, '#dddddd')).setOrigin(1, 0.5).setDepth(6);
       this.add.text(cx + 20, 190 + i * 22, b, uiStyle(15, '#9fe8ff')).setOrigin(0, 0.5).setDepth(6);
     });
-    this.add.text(cx, 420, 'Fogo explode em área · Gelo perfura e deixa lento · Raio destrói tiros ROXOS', uiStyle(13, '#ffb98a')).setOrigin(0.5).setDepth(6);
-    this.add.text(cx, 440, 'Passar raspando nos tiros e dar dash através deles enche a barra Arcana', uiStyle(13, '#ffb98a')).setOrigin(0.5).setDepth(6);
+    this.add.text(cx, 420, '3 heróis: Mago, Guerreiro e Arqueiro — cada um com armas, golpe e especial próprios', uiStyle(13, '#ffb98a')).setOrigin(0.5).setDepth(6);
+    this.add.text(cx, 440, 'Passar raspando nos tiros e dar dash através deles enche a barra do especial', uiStyle(13, '#ffb98a')).setOrigin(0.5).setDepth(6);
     const start = this.add.text(cx, 488, 'ENTER para começar', uiStyle(24)).setOrigin(0.5).setDepth(6);
     this.tweens.add({ targets: start, alpha: 0.2, duration: 500, yoyo: true, repeat: -1 });
   }
@@ -46,7 +46,7 @@ export default class TitleScene extends Phaser.Scene {
     if (this.controls.just('mute')) toggleMute();
     if (this.controls.just('confirm')) {
       initAudio();
-      this.scene.start('Game', { level: 0 });
+      this.scene.start('Select');
     }
   }
 }

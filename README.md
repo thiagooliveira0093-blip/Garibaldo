@@ -1,8 +1,18 @@
 # Garibaldo — Guerra Arcana
 
 Run'n'gun 2D estilo Metal Slug feito em **Phaser 3**. A mecânica principal é atirar poderes
-(Fogo, Gelo, Raio) e desviar dos poderes inimigos. Desviar bem recompensa: passar de raspão
-(*graze*) e atravessar tiros com o dash (*esquiva perfeita*) enchem a barra Arcana.
+e desviar dos poderes inimigos. Desviar bem recompensa: passar de raspão (*graze*) e atravessar
+tiros com o dash (*esquiva perfeita*) enchem a barra do especial.
+
+Você escolhe um de **3 heróis** antes de começar:
+
+| Herói | Estilo | Armas (1 / 2 / 3) | Golpe | Especial |
+|---|---|---|---|---|
+| **Garibaldo** (Mago) | equilibrado, 5 vidas | Fogo (explode) · Gelo (perfura, deixa lento) · Raio (3 tiros, destrói tiros roxos) | espada espiritual | Explosão Arcana |
+| **Bruno** (Guerreiro) | tanque lento, 8 vidas; o dash machuca quem estiver no caminho | Machado (perfura) · Lança (rápida) · Tremor (onda no chão) | espadada (longo alcance, dano alto) | Terremoto |
+| **Leo** (Arqueiro) | rápido e frágil, 4 vidas, pulo duplo | Flecha · Flecha de fogo (explode) · Flecha tripla | adaga (rápida) | Chuva de Flechas |
+
+Os nomes Bruno e Leo são provisórios: troque em `src/characters.js`.
 
 ## Rodar
 
@@ -42,7 +52,8 @@ borda de baixo** do quadro (o jogo espelha sozinho).
 
 | Arquivo | Quadro | Quadros (índice → animação) |
 |---|---|---|
-| `garibaldo_fire.png`, `garibaldo_ice.png`, `garibaldo_bolt.png` | 96x80, 7 colunas | um sheet por poder (olhos, fecho e magia mudam de cor). 0-3 parado · 4-5 agachado · 6-7 dano · 8-13 correndo · 14 pulo · 15 queda · 16-21 lançar magia · 22-23 dash · 24-27 morte · 28-33 espada espiritual. Pés em x=36, y=79. |
+| `garibaldo_fire.png`, `garibaldo_ice.png`, `garibaldo_bolt.png`, `warrior.png`, `archer.png` | 96x80, 7 colunas | Mago (um sheet por poder: olhos, fecho e magia mudam de cor), Guerreiro e Arqueiro. Mesmo layout nos 3: 0-3 parado · 4-5 agachado · 6-7 dano · 8-13 correndo · 14 pulo · 15 queda · 16-21 ataque à distância · 22-23 dash · 24-27 morte · 28-33 golpe corpo a corpo. Pés em x=36, y=79. |
+| `proj3.png` | 32x32, 8 colunas | 0-1 flecha · 2-3 flecha de fogo · 4 lança · 5-8 machado · 9-10 tremor · 11-16 ícones do HUD |
 | `fireball.png` | 32x32 | bola de fogo do jogador (cabeça em x=21, y=17; rastro para a esquerda) |
 | `grunt.png` | 48x48 | 0-1 parado · 2-5 andando · 6-7 atacando |
 | `caster.png` | 48x64 | 0-3 parado · 4-5 conjurando |
@@ -115,13 +126,24 @@ Vida, pontos e energia passam de uma fase para a outra.
 | Mover | A / D ou setas |
 | Pular | Espaço ou X |
 | Atirar (segure) | J ou Z |
-| Espada espiritual (corpo a corpo) | F ou H |
+| Golpe corpo a corpo | F ou H |
 | Mirar cima / diagonal | W ou seta cima (+ direção) |
 | Agachar / atirar pra baixo no ar | S ou seta baixo |
 | Descer da plataforma | baixo + Espaço |
 | Dash invencível | K, Shift ou C |
-| Trocar poder | Q / E ou 1, 2, 3 |
-| Explosão Arcana | L ou V (barra cheia) |
+| Trocar arma / poder | Q / E ou 1, 2, 3 |
+| Especial | L ou V (barra cheia) |
 | Pausar / Mudo | P / M |
+| Escolher outro herói (ao morrer ou vencer) | T |
 
 Para remapear, edite `src/systems/controls.js`.
+
+## Criar ou ajustar um herói
+
+Tudo de um personagem (vida, velocidade, armas, golpe, dash e especial) fica em `src/characters.js`.
+Cada arma tem flags simples: `pierce` (atravessa), `splash` (explode em área), `slow` (deixa lento),
+`breaks` (destrói tiros roxos), `spread` (vários tiros), `ground` (anda rente ao chão).
+
+Sprites: `assets/sprites/warrior.png` e `archer.png` (96x80, mesmo layout de quadros do mago) e
+`proj3.png` (flechas, machado, lança, tremor e ícones). `npm run personagens` gera os placeholders;
+arquivos que já existem não são sobrescritos (use `-- --force`).

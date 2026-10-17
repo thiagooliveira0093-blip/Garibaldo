@@ -1,5 +1,5 @@
 import {
-  GAME_W, GAME_H, LEVELS, ENEMIES, SHOTS, DESTRUCTIBLE, FIRE_SPLASH, ICE_SLOW, POWERS, MELEE,
+  GAME_W, GAME_H, LEVELS, ENEMIES, SHOTS, DESTRUCTIBLE, ICE_SLOW,
   GRAZE, PERFECT_DODGE, SLOW_FACTOR,
 } from '../config.js';
 import { FRAME } from '../assets.js';
@@ -28,6 +28,7 @@ export default class GameScene extends Phaser.Scene {
     this.ready = false;
     this.levelIndex = data.level || 0;
     this.carry = data.carry || null;
+    this.charId = data.char || this.registry.get('char') || 'mage'; // escolhido na tela de seleção
   }
 
   create() {
@@ -55,7 +56,7 @@ export default class GameScene extends Phaser.Scene {
     // ---------- objetos: player, ondas e inimigos ----------
     const objs = (map.getObjectLayer('objetos') || { objects: [] }).objects;
     const start = objs.find(o => o.name === 'player') || { x: 100, y: this.groundAt(100) };
-    this.player = new Player(this, start.x, start.y);
+    this.player = new Player(this, start.x, start.y, this.charId);
 
     const waves = objs.filter(o => o.name === 'onda')
       .map(o => ({ id: prop(o, 'id', 0), x: o.x, boss: !!prop(o, 'chefe', false), spawns: [] }))
@@ -82,8 +83,8 @@ export default class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.pickups, this.ground);
     this.physics.add.collider(this.pickups, this.plats);
     this.physics.add.overlap(this.pShots, this.enemies, (s, e) => this.onShotHitEnemy(s, e));
-    this.physics.add.overlap(this.pShots, this.eShots, (s, es) => this.onBoltHitShot(s, es),
-      (s, es) => s.pw.kind === 'bolt' && DESTRUCTIBLE.has(es.kind));
+    this.physics.add.overlap(this.pShots, this.eShots, (s, es) => this.onShotBreaksShot(s, es),
+      (s, es) => s.pw.breaks && DESTRUCTIBLE.has(es.kind));
     this.physics.add.overlap(this.player, this.pickups, (p, k) => this.collect(k));
 
     // ---------- estado ----------
@@ -128,6 +129,11 @@ export default class GameScene extends Phaser.Scene {
     if (this.state === 'play' && c.just('pause')) this.setPaused(!this.paused);
     if (this.paused) return;
     if ((this.state === 'dead' || this.state === 'win') && c.just('restart')) { this.restartGame(); return; }
+    if ((this.state === 'dead' || this.state === 'win') && c.just('switch')) { // voltar para escolher outro herói
+      this.physics.world.timeScale = 1; this.anims.globalTimeScale = 1;
+      this.scene.stop('UI'); this.scene.start('Select');
+      return;
+    }
 
     const real = Math.min(delta / 1000, 1 / 30);
     let ts = 1;
@@ -163,15 +169,18 @@ export default class GameScene extends Phaser.Scene {
   }
 
   // ======================================================== TIROS
-  firePlayerShot(x, y, ang, pw) {
-    const s = this.pShots.create(x, y, 'proj', pw.frame);
-    s.setDepth(13).setBlendMode('ADD').setRotation(ang).play(pw.anim);
-    if (pw.kind === 'fire') { // a cabeça da bola de fogo fica em (21,17) do quadro; o rastro vai para trás
-      s.setOrigin(21 / 32, 17 / 32);
-      s.body.setCircle(pw.radius, 21 - pw.radius, 17 - pw.radius);
-    } else s.body.setCircle(pw.radius, 16 - pw.radius, 16 - pw.radius);
-    s.body.setVelocity(Math.cos(ang) * pw.speed, Math.sin(ang) * pw.speed);
-    s.pw = pw; s.life = 1.3; s.hits = new Set();
+  // `pw` é a arma (characters.js). sprite.origin = ponto do quadro que fica na hitbox (a "ponta" do tiro).
+  firePlayerShot(x, y, ang, pw, facing = 1) {
+    const sp = pw.sprite, [ox, oy] = sp.origin || [16, 16];
+    const s = this.pShots.create(x, y, sp.sheet, sp.frame);
+    s.setDepth(13).setOrigin(ox / 32, oy / 32).play(sp.anim);
+    if (!pw.solid) s.setBlendMode('ADD');
+    if (!pw.spin) s.setRotation(ang);                       // machado e tremor não giram com a mira
+    s.body.setCircle(pw.radius, ox - pw.radius, oy - pw.radius);
+    let vx = Math.cos(ang) * pw.speed, vy = Math.sin(ang) * pw.speed;
+    if (pw.ground) { s.y = this.groundAt(x) - 16; vx = facing * pw.speed; vy = 0; s.setFlipX(facing < 0); } // rente ao chão
+    s.body.setVelocity(vx, vy);
+    s.pw = pw; s.life = pw.life || 1.3; s.hits = new Set();
   }
 
   enemyShot(x, y, vx, vy, kind) {
@@ -213,7 +222,7 @@ export default class GameScene extends Phaser.Scene {
 
     for (const s of this.pShots.getChildren().slice()) {
       s.life -= dt;
-      if (s.pw.kind === 'fire' && Math.random() < 0.5) this.fx.trail(s.x, s.y, 0xffb347);
+      if (s.pw.trail && Math.random() < 0.5) this.fx.trail(s.x, s.y, s.pw.trail);
       const gy = this.groundAt(s.x);
       if (s.y > gy) { this.fx.burst(s.x, gy, s.pw.color, 5, 120); s.destroy(); continue; }
       if (s.life <= 0 || s.x < camL || s.x > camR || s.y < -60) s.destroy();
@@ -300,30 +309,29 @@ export default class GameScene extends Phaser.Scene {
     if (!s.active || e.dead || e.spawnT > 0 || s.hits.has(e)) return;
     const pw = s.pw;
     sfx('hit');
-    if (pw.kind === 'fire') {
-      this.damageEnemy(e, pw.dmg);
+    this.damageEnemy(e, pw.dmg);
+    if (pw.slow) e.slowT = ICE_SLOW.time;
+    if (pw.splash) { // explode em área e some
       for (const o of this.enemies.getChildren().slice()) {
         if (o === e || o.dead || o.spawnT > 0) continue;
-        if (Phaser.Math.Distance.Between(o.body.center.x, o.body.center.y, s.x, s.y) < FIRE_SPLASH.radius) this.damageEnemy(o, FIRE_SPLASH.dmg);
+        if (Phaser.Math.Distance.Between(o.body.center.x, o.body.center.y, s.x, s.y) < pw.splash.radius) this.damageEnemy(o, pw.splash.dmg);
       }
-      this.fx.burst(s.x, s.y, 0xff7a2f, 14, 260, 100, 450);
-      this.fx.ring(s.x, s.y, 0xffb347, true);
+      this.fx.burst(s.x, s.y, pw.color, 14, 260, 100, 450);
+      this.fx.ring(s.x, s.y, pw.color, true);
       s.destroy();
-    } else if (pw.kind === 'ice') {
-      this.damageEnemy(e, pw.dmg);
-      e.slowT = ICE_SLOW.time;
-      s.hits.add(e); // perfura
-      this.fx.burst(s.x, s.y, 0xbff0ff, 6, 160, 0, 350);
+    } else if (pw.pierce) { // atravessa: cada inimigo só leva o dano uma vez
+      s.hits.add(e);
+      this.fx.burst(s.x, s.y, pw.color, 6, 160, 0, 350);
     } else {
-      this.damageEnemy(e, pw.dmg);
-      this.fx.burst(s.x, s.y, 0xfff9a0, 5, 180, 0, 250);
+      this.fx.burst(s.x, s.y, pw.color, 5, 180, 0, 250);
       s.destroy();
     }
   }
 
-  onBoltHitShot(s, es) {
+  // armas com `breaks` destroem tiros inimigos destrutíveis (roxos) em pleno ar
+  onShotBreaksShot(s, es) {
     if (!s.active || !es.active) return;
-    this.fx.burst(es.x, es.y, 0xf6f35a, 6, 160, 0, 300);
+    this.fx.burst(es.x, es.y, s.pw.color, 6, 160, 0, 300);
     this.player.energy = Math.min(100, this.player.energy + 1);
     this.score += 5;
     es.destroy(); s.destroy();
@@ -427,22 +435,23 @@ export default class GameScene extends Phaser.Scene {
     sfx('dodge');
   }
 
-  // Espada espiritual: corta os inimigos à frente e destrói tiros pequenos (arriscado, mas recompensa)
+  // Golpe corpo a corpo (espada espiritual, espadada ou adaga): acerta quem está à frente
+  // e destrói tiros pequenos (arriscado, mas recompensa com energia).
   meleeStrike(p) {
-    const w = MELEE.reach, pw = POWERS[p.power];
-    const box = new Rectangle(p.facing > 0 ? p.x - 6 : p.x - w + 6, p.y - 70, w, MELEE.height);
+    const m = p.char.melee, pw = p.weapon, w = m.reach;
+    const box = new Rectangle(p.facing > 0 ? p.x - 6 : p.x - w + 6, p.y - 70, w, m.height);
     let hits = 0;
     for (const e of this.enemies.getChildren().slice()) {
       if (e.dead || e.spawnT > 0 || !Intersects.RectangleToRectangle(box, e.bodyRect())) continue;
       hits++;
       const c = e.body.center;
-      this.damageEnemy(e, e.kind === 'boss' ? MELEE.bossDmg : MELEE.dmg);
-      p.energy = Math.min(100, p.energy + MELEE.energy);
-      if (pw.kind === 'ice') e.slowT = ICE_SLOW.time;
+      this.damageEnemy(e, e.kind === 'boss' ? m.bossDmg : m.dmg);
+      p.energy = Math.min(100, p.energy + m.energy);
+      if (pw.slow) e.slowT = ICE_SLOW.time;
       this.fx.burst(c.x, c.y, pw.color, 10, 240, 100, 400);
     }
     for (const s of this.eShots.getChildren().slice()) {
-      if (!s.visible || !MELEE.breaks.includes(s.kind)) continue;
+      if (!s.visible || !m.breaks.includes(s.kind)) continue;
       if (!Intersects.CircleToRectangle(new Circle(s.x, s.y, s.radius), box)) continue;
       hits++;
       this.fx.burst(s.x, s.y, pw.color, 6, 180, 0, 350);
@@ -453,22 +462,51 @@ export default class GameScene extends Phaser.Scene {
     if (hits) { this.fx.shake(4); sfx('hit'); }
   }
 
-  // Explosão Arcana: limpa todos os tiros inimigos e causa dano em tudo na tela
+  // Investida do dash (guerreiro): machuca cada inimigo que encostar, uma vez por dash
+  dashStrike(p) {
+    const hb = p.hurtbox();
+    for (const e of this.enemies.getChildren().slice()) {
+      if (e.dead || e.spawnT > 0 || p.dashHits.has(e) || !Intersects.RectangleToRectangle(hb, e.bodyRect())) continue;
+      p.dashHits.add(e);
+      this.damageEnemy(e, p.char.dash.hitDmg);
+      this.fx.burst(e.body.center.x, e.body.center.y, 0xcfd8e6, 10, 240, 100, 400);
+      this.fx.shake(6);
+      sfx('hit');
+    }
+  }
+
+  // Especial do personagem: limpa todos os tiros inimigos e causa dano em tudo na tela.
+  // O efeito visual muda: portal arcano (mago), terremoto (guerreiro), chuva de flechas (arqueiro).
   special() {
-    const p = this.player;
+    const p = this.player, sp = p.char.special, color = p.weapon.color;
     p.energy = 0;
-    this.fx.ring(p.x, p.y - 24, 0xe3b8ff);
-    this.fx.portal(p.x, p.y - 4, POWERS[p.power].color);
+    if (sp.kind === 'arcane') {
+      this.fx.ring(p.x, p.y - 24, 0xe3b8ff);
+      this.fx.portal(p.x, p.y - 4, color);
+    } else if (sp.kind === 'quake') {
+      this.fx.portal(p.x, p.y - 4, 0xff8a2a);
+      this.fx.ring(p.x, p.y - 6, 0xffb347);
+      for (let i = -9; i <= 9; i++) this.fx.burst(p.x + i * 55, p.y - 2, 0xffb347, 5, 220, 300, 600);
+    } else {
+      for (let i = 0; i < 40; i++) {
+        const x = this.camX + Phaser.Math.Between(20, GAME_W - 20), gy = this.groundAt(x) - 6;
+        const a = this.add.sprite(x, -30, 'proj3', 0).setRotation(Math.PI / 2).setDepth(15).play('shot-arrow');
+        this.tweens.add({
+          targets: a, y: gy, duration: 330, delay: Phaser.Math.Between(0, 450), ease: 'Quad.easeIn',
+          onComplete: () => { this.fx.burst(a.x, a.y, 0xd8c8a0, 4, 120, 100, 300); a.destroy(); },
+        });
+      }
+    }
     for (const s of this.eShots.getChildren()) if (s.visible) this.fx.burst(s.x, s.y, 0xe8d7ff, 4, 150, 0, 400);
     this.score += this.eShots.countActive(true) * 10;
     this.eShots.clear(true, true);
     this.blasts = [];
     for (const e of this.enemies.getChildren().slice()) {
-      if (!e.dead && e.spawnT <= 0 && e.x > this.camX - 40 && e.x < this.camX + GAME_W + 40) this.damageEnemy(e, e.kind === 'boss' ? 12 : 8);
+      if (!e.dead && e.spawnT <= 0 && e.x > this.camX - 40 && e.x < this.camX + GAME_W + 40) this.damageEnemy(e, e.kind === 'boss' ? sp.bossDmg : sp.dmg);
     }
-    this.fx.shake(18);
+    this.fx.shake(sp.kind === 'quake' ? 26 : 18);
     this.slowT = 0.3;
-    this.fx.floater(p.x, p.y - 70, 'EXPLOSÃO ARCANA!', '#e3b8ff');
+    this.fx.floater(p.x, p.y - 70, `${sp.name}!`, '#e3b8ff');
     sfx('special');
   }
 

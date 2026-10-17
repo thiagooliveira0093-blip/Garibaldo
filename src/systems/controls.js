@@ -3,7 +3,7 @@ const MAP = {
   left: ['A', 'LEFT'], right: ['D', 'RIGHT'], up: ['W', 'UP'], down: ['S', 'DOWN'],
   jump: ['SPACE', 'X'], shoot: ['J', 'Z'], melee: ['F', 'H'], dash: ['K', 'SHIFT', 'C'], special: ['L', 'V'],
   prev: ['Q'], next: ['E'], p1: ['ONE'], p2: ['TWO'], p3: ['THREE'],
-  pause: ['P', 'ESC'], mute: ['M'], confirm: ['ENTER', 'SPACE'], restart: ['R', 'ENTER'],
+  pause: ['P', 'ESC'], mute: ['M'], confirm: ['ENTER', 'SPACE'], restart: ['R', 'ENTER'], switch: ['T'],
 };
 
 export default class Controls {

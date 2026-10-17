@@ -1,30 +1,36 @@
-import { GAME_W, RUN, CRAWL, JUMP, DASH_SPEED, DASH_TIME, DASH_CD, POWERS, PLAYER_HP, MELEE } from '../config.js';
+import { GAME_W } from '../config.js';
+import { CHARACTERS, variantOf } from '../characters.js';
 import { sfx } from '../systems/sfx.js';
 
 // Quadro 96x80. O ponto de origem (pés) fica em x=36, y=79: a hitbox é centrada nele,
 // pois o espelhamento do sprite não espelha o corpo de física.
 const ORIGIN = { x: 36 / 96, y: 79 / 80 };
-const STAND = { w: 20, h: 50, ox: 26, oy: 29 };
-const CROUCH = { w: 20, h: 32, ox: 26, oy: 47 };
-const CAST_TIME = 0.3; // duração da animação de lançar magia
+const STAND_OY = 29, STAND_H = 50, CROUCH_OY = 47, CROUCH_H = 32;
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
-  constructor(scene, x, y) {
-    super(scene, x, y, 'player-fire', 0);
+  constructor(scene, x, y, charId = 'mage') {
+    const char = CHARACTERS[charId];
+    super(scene, x, y, `${char.id}-${variantOf(char, 0)}`, 0);
+    this.char = char;
+    this.powers = char.powers;
     scene.add.existing(this);
     scene.physics.add.existing(this);
     this.setOrigin(ORIGIN.x, ORIGIN.y).setDepth(10);
-    this.body.setSize(STAND.w, STAND.h).setOffset(STAND.ox, STAND.oy);
+    this.standBox = { w: char.body.w, h: STAND_H, ox: 36 - char.body.w / 2, oy: STAND_OY };
+    this.crouchBox = { w: char.body.w, h: CROUCH_H, ox: 36 - char.body.w / 2, oy: CROUCH_OY };
+    this.body.setSize(this.standBox.w, this.standBox.h).setOffset(this.standBox.ox, this.standBox.oy);
     this.body.setMaxVelocity(1000, 900);
 
     Object.assign(this, {
-      facing: 1, hp: PLAYER_HP, maxHp: PLAYER_HP, iframes: 0, dashT: 0, dashCd: 0, dashDodged: false,
-      dropT: 0, cd: 0, castT: 0, meleeT: 0, meleeCd: 0, meleeHit: true, power: 0, energy: 0, crouch: false, aimAngle: 0, moving: false, ghostT: 0, alive: true, t: 0,
+      facing: 1, hp: char.stats.hp, maxHp: char.stats.hp, iframes: 0, dashT: 0, dashCd: 0, dashDodged: false, dashHits: new Set(),
+      dropT: 0, cd: 0, castT: 0, meleeT: 0, meleeCd: 0, meleeHit: true, jumpsLeft: char.stats.airJumps,
+      power: 0, energy: 0, crouch: false, aimAngle: 0, moving: false, ghostT: 0, alive: true, t: 0,
     });
   }
 
   get onGround() { return this.body.blocked.down; }
   onPlatform() { return !!this.scene.plats.getTileAtWorldXY(this.x, this.y + 4); }
+  get weapon() { return this.powers[this.power]; }
 
   hurtbox() {
     const b = this.body;
@@ -34,14 +40,14 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   setCrouch(c) {
     if (c === this.crouch) return;
     this.crouch = c;
-    const b = c ? CROUCH : STAND;
+    const b = c ? this.crouchBox : this.standBox;
     this.body.setSize(b.w, b.h, false).setOffset(b.ox, b.oy);
   }
 
-  setPower(i) { this.power = i; }
+  setPower(i) { if (i >= 0 && i < this.powers.length) this.power = i; }
 
   update(dt) {
-    const s = this.scene, c = s.controls;
+    const s = this.scene, c = s.controls, st = this.char.stats, dash = this.char.dash, melee = this.char.melee;
     this.t += dt;
     this.iframes = Math.max(0, this.iframes - dt);
     this.dashCd -= dt; this.cd -= dt; this.dropT -= dt; this.castT -= dt;
@@ -50,37 +56,47 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     const left = c.held('left'), right = c.held('right'), up = c.held('up'), dn = c.held('down');
     const move = (right ? 1 : 0) - (left ? 1 : 0);
 
-    if (c.just('prev')) this.setPower((this.power + 2) % 3);
-    if (c.just('next')) this.setPower((this.power + 1) % 3);
+    if (c.just('prev')) this.setPower((this.power + this.powers.length - 1) % this.powers.length);
+    if (c.just('next')) this.setPower((this.power + 1) % this.powers.length);
     if (c.just('p1')) this.setPower(0);
     if (c.just('p2')) this.setPower(1);
     if (c.just('p3')) this.setPower(2);
 
     const onGround = this.onGround;
+    if (onGround) this.jumpsLeft = st.airJumps;
     this.setCrouch(dn && onGround && this.dashT <= 0 && this.meleeT <= 0 && !up);
 
     if (this.dashT > 0) {
       this.dashT -= dt;
       this.body.setAllowGravity(false);
-      this.setVelocity(this.facing * DASH_SPEED, 0);
+      this.setVelocity(this.facing * dash.speed, 0);
       this.ghostT -= dt;
       if (this.ghostT <= 0) { s.fx.ghost(this); this.ghostT = 0.03; }
+      if (dash.hitDmg) s.dashStrike(this);
       if (this.dashT <= 0) this.body.setAllowGravity(true);
     } else {
       if (move) this.facing = move;
       this.moving = move !== 0;
-      this.setVelocityX(move * (this.crouch ? CRAWL : RUN) * (this.meleeT > 0 ? MELEE.moveFactor : 1));
+      this.setVelocityX(move * (this.crouch ? st.crawl : st.run) * (this.meleeT > 0 ? melee.moveFactor : 1));
 
-      if (c.just('jump') && onGround) {
-        if (dn && this.onPlatform()) { this.dropT = 0.25; this.setCrouch(false); } // descer da plataforma
-        else { this.setCrouch(false); this.setVelocityY(-JUMP); s.fx.burst(this.x, this.y, 0xbbbbaa, 6, 90); }
+      if (c.just('jump')) {
+        if (onGround) {
+          if (dn && this.onPlatform()) { this.dropT = 0.25; this.setCrouch(false); } // descer da plataforma
+          else { this.setCrouch(false); this.setVelocityY(-st.jump); s.fx.burst(this.x, this.y, 0xbbbbaa, 6, 90); }
+        } else if (this.jumpsLeft > 0) { // pulo duplo
+          this.jumpsLeft--;
+          this.setVelocityY(-st.jump * 0.9);
+          s.fx.burst(this.x, this.y - 4, 0xffffff, 8, 140, 0, 350);
+          sfx('dash');
+        }
       }
       if (!c.held('jump') && this.body.velocity.y < -280) this.setVelocityY(-280); // pulo variável
 
       if (c.just('dash') && this.dashCd <= 0) {
         if (move) this.facing = move;
         this.setCrouch(false);
-        this.dashT = DASH_TIME; this.dashCd = DASH_CD; this.dashDodged = false; this.castT = 0; this.meleeT = 0;
+        this.dashT = dash.time; this.dashCd = dash.cd; this.dashDodged = false; this.castT = 0; this.meleeT = 0;
+        this.dashHits.clear();
         sfx('dash');
       }
     }
@@ -95,14 +111,14 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     else if (dn && !onGround) this.aimAngle = Math.PI / 2;
     else this.aimAngle = 0;
 
-    // espada espiritual: o golpe acerta no quadro do corte, não no início da animação
+    // golpe corpo a corpo: acerta no quadro do corte, não no início da animação
     if (c.just('melee') && this.meleeCd <= 0 && this.dashT <= 0 && this.meleeT <= 0) {
       this.setCrouch(false);
-      this.meleeT = MELEE.time; this.meleeCd = MELEE.cd; this.meleeHit = false; this.castT = 0;
-      this.playAnim('slash', true);
-      sfx('slash');
+      this.meleeT = melee.time; this.meleeCd = melee.cd; this.meleeHit = false; this.castT = 0;
+      this.playAnim('melee', true);
+      sfx(melee.sfx);
     }
-    if (this.meleeT > 0 && !this.meleeHit && MELEE.time - this.meleeT >= MELEE.hitAt) { this.meleeHit = true; s.meleeStrike(this); }
+    if (this.meleeT > 0 && !this.meleeHit && melee.time - this.meleeT >= melee.hitAt) { this.meleeHit = true; s.meleeStrike(this); }
 
     if (c.held('shoot') && this.cd <= 0 && this.dashT <= 0 && this.meleeT <= 0) this.fire();
     if (c.just('special') && this.energy >= 100) s.special();
@@ -110,29 +126,30 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.updateAnim();
   }
 
-  // ombro de onde sai a magia (relativo aos pés, medido no sprite)
-  shoulder() { return { x: this.x + 4 * this.facing, y: this.y + (this.crouch ? -21 : -30) }; }
+  // ombro de onde sai o ataque (relativo aos pés, medido no sprite)
+  shoulder() {
+    const [dx, dy] = this.crouch ? this.char.shoulder.crouch : this.char.shoulder.stand;
+    return { x: this.x + dx * this.facing, y: this.y + dy };
+  }
   aimDir() { return { x: Math.cos(this.aimAngle) * this.facing, y: Math.sin(this.aimAngle) }; }
 
   fire() {
-    const pw = POWERS[this.power];
+    const pw = this.weapon, [dist, dy] = this.char.muzzle;
     this.cd = pw.cd;
     const sh = this.shoulder(), d = this.aimDir();
-    // a magia sai da orbe que flutua acima do grimório (~8px acima do ombro)
-    const ox = sh.x + d.x * 24, oy = sh.y - 8 + d.y * 24;
-    // animação de lançar magia (só em pé no chão; agachado/no ar mantém a pose)
-    if (this.onGround && !this.crouch) { this.castT = CAST_TIME; this.playAnim('cast', true); }
+    const ox = sh.x + d.x * dist, oy = sh.y + dy + d.y * dist;
+    // animação de ataque (só em pé no chão; agachado/no ar mantém a pose)
+    if (this.onGround && !this.crouch) { this.castT = this.char.shootTime; this.playAnim('shoot', true); }
     const base = Math.atan2(d.y, d.x);
-    const spread = pw.kind === 'bolt' ? [-0.13, 0, 0.13] : [0];
-    for (const off of spread) this.scene.firePlayerShot(ox, oy, base + off, pw);
+    for (const off of pw.spread || [0]) this.scene.firePlayerShot(ox, oy, base + off, pw, this.facing);
     this.scene.fx.burst(ox, oy, pw.color, 4, 120, 0, 200);
-    sfx(pw.kind);
+    sfx(pw.sfx);
   }
 
-  // Toca a animação no sheet do poder atual (olhos e magia mudam de cor).
+  // Toca a animação no sheet atual (no mago, o sheet muda de cor com o poder).
   // Ao trocar de poder no meio de uma animação, continua do mesmo quadro.
   playAnim(name, restart = false) {
-    const key = `player-${POWERS[this.power].kind}-${name}`;
+    const key = `${this.char.id}-${variantOf(this.char, this.power)}-${name}`;
     const cur = this.anims.currentAnim;
     if (!restart && cur && cur.key === key) return;
     const sameBase = !restart && cur && cur.key.endsWith(`-${name}`) && this.anims.currentFrame;
@@ -142,15 +159,15 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   updateAnim() {
     this.setFlipX(this.facing < 0);
     let anim;
-    if (!this.alive) anim = 'player-dead';
-    else if (this.iframes > 1.0) anim = 'player-hurt';
-    else if (this.dashT > 0) anim = 'player-dash';
-    else if (this.meleeT > 0) anim = 'player-slash';
-    else if (this.castT > 0 && this.onGround && !this.crouch) anim = 'player-cast';
-    else if (!this.onGround) anim = this.body.velocity.y < 0 ? 'player-jump' : 'player-fall';
-    else if (this.crouch) anim = this.moving ? 'player-crawl' : 'player-crouch';
-    else anim = this.moving ? 'player-run' : 'player-idle';
-    this.playAnim(anim.slice('player-'.length));
+    if (!this.alive) anim = 'dead';
+    else if (this.iframes > 1.0) anim = 'hurt';
+    else if (this.dashT > 0) anim = 'dash';
+    else if (this.meleeT > 0) anim = 'melee';
+    else if (this.castT > 0 && this.onGround && !this.crouch) anim = 'shoot';
+    else if (!this.onGround) anim = this.body.velocity.y < 0 ? 'jump' : 'fall';
+    else if (this.crouch) anim = this.moving ? 'crawl' : 'crouch';
+    else anim = this.moving ? 'run' : 'idle';
+    this.playAnim(anim);
     const blink = this.alive && this.iframes > 0 && Math.floor(this.iframes * 18) % 2 === 0;
     this.setAlpha(blink ? 0.25 : 1);
   }

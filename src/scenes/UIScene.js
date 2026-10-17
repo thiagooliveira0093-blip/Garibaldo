@@ -1,4 +1,4 @@
-import { GAME_W, GAME_H, POWERS } from '../config.js';
+import { GAME_W, GAME_H } from '../config.js';
 import { FRAME } from '../assets.js';
 import { uiStyle, FONT } from '../systems/ui-style.js';
 import { isMuted } from '../systems/sfx.js';
@@ -11,15 +11,7 @@ export default class UIScene extends Phaser.Scene {
     this.g = this.add.graphics();
     this.hearts = Array.from({ length: 10 }, (_, i) => this.add.image(24 + i * 26, 26, 'proj', FRAME.heart).setVisible(false));
     this.energyText = this.add.text(186, 51, 'ARCANO', uiStyle(12, '#d7c4ff')).setOrigin(0, 0.5);
-    this.slots = POWERS.map((pw, i) => {
-      const x = 14 + i * 74, y = GAME_H - 52;
-      return {
-        x, y,
-        icon: this.add.image(x + 16, y + 20, 'proj', pw.hand).setBlendMode('ADD'),
-        name: this.add.text(x + 30, y + 14, pw.name, uiStyle(12)).setOrigin(0, 0.5),
-        key: this.add.text(x + 30, y + 28, pw.key, { fontFamily: FONT, fontSize: '10px', color: '#888888' }).setOrigin(0, 0.5),
-      };
-    });
+    this.slots = []; this.slotChar = null;
     this.scoreText = this.add.text(GAME_W / 2, 26, '', uiStyle(22, '#ffe27a')).setOrigin(0.5);
     this.comboText = this.add.text(GAME_W / 2, 50, '', uiStyle(14, '#ff9b3d')).setOrigin(0.5);
     this.bossName = this.add.text(GAME_W - 334, 44, '', uiStyle(12, '#ffd6ff')).setOrigin(0, 0.5);
@@ -32,6 +24,21 @@ export default class UIScene extends Phaser.Scene {
     this.muteText = this.add.text(GAME_W - 14, GAME_H - 16, '', { fontFamily: FONT, fontSize: '12px', color: '#888888' }).setOrigin(1, 0.5);
   }
 
+  // as 3 armas/poderes do personagem escolhido (teclas 1, 2, 3)
+  buildSlots(char) {
+    for (const sl of this.slots) { sl.icon.destroy(); sl.name.destroy(); sl.key.destroy(); }
+    this.slotChar = char.id;
+    this.slots = char.powers.map((pw, i) => {
+      const x = 14 + i * 74, y = GAME_H - 52;
+      return {
+        x, y,
+        icon: this.add.image(x + 16, y + 20, pw.icon.sheet, pw.icon.frame).setBlendMode(pw.solid ? 'NORMAL' : 'ADD'),
+        name: this.add.text(x + 30, y + 14, pw.name, uiStyle(12)).setOrigin(0, 0.5),
+        key: this.add.text(x + 30, y + 28, pw.key, { fontFamily: FONT, fontSize: '10px', color: '#888888' }).setOrigin(0, 0.5),
+      };
+    });
+  }
+
   update() {
     const gs = this.scene.get('Game');
     const visible = !!(gs && gs.ready && this.scene.isActive('Game'));
@@ -39,6 +46,7 @@ export default class UIScene extends Phaser.Scene {
     if (!visible) return;
 
     const p = gs.player, g = this.g;
+    if (this.slotChar !== p.char.id) this.buildSlots(p.char);
     g.clear();
 
     this.hearts.forEach((h, i) => h.setVisible(i < p.maxHp).setTint(i < p.hp ? 0xffffff : 0x3a2a3a));
@@ -46,10 +54,11 @@ export default class UIScene extends Phaser.Scene {
     const full = p.energy >= 100, blink = Math.floor(gs.elapsed * 8) % 2;
     g.fillStyle(0x120a1a).fillRect(14, 44, 164, 14);
     g.fillStyle(full ? (blink ? 0xffffff : 0xe38bff) : 0x9b5bff).fillRect(16, 46, 160 * (p.energy / 100), 10);
-    this.energyText.setText(full ? 'ARCANO PRONTO! [L]' : 'ARCANO').setColor(full ? '#ffe27a' : '#d7c4ff');
+    const label = p.char.special.label;
+    this.energyText.setText(full ? `${label} PRONTO! [L]` : label).setColor(full ? '#ffe27a' : '#d7c4ff');
 
     this.slots.forEach((sl, i) => {
-      const sel = i === p.power, pw = POWERS[i];
+      const sel = i === p.power, pw = p.powers[i];
       g.fillStyle(sel ? 0xffffff : 0x000000, sel ? 0.13 : 0.4).fillRect(sl.x, sl.y, 68, 40);
       g.lineStyle(sel ? 2 : 1, sel ? pw.color : 0xffffff, sel ? 1 : 0.2).strokeRect(sl.x + 0.5, sl.y + 0.5, 67, 39);
       sl.name.setColor(sel ? '#ffffff' : '#aaaaaa');
@@ -78,10 +87,10 @@ export default class UIScene extends Phaser.Scene {
     if (gs.paused) { big = 'PAUSADO'; hint = 'P para continuar'; }
     else if (gs.state === 'dead') {
       big = 'VOCÊ CAIU'; bigColor = '#ff4d6d'; tint = 0x300a14;
-      sub = `Pontos: ${gs.score}   ·   Recorde: ${gs.best}`; hint = 'R para tentar de novo';
+      sub = `Pontos: ${gs.score}   ·   Recorde: ${gs.best}`; hint = 'R tentar de novo   ·   T trocar de herói';
     } else if (gs.state === 'win') {
       big = 'MISSÃO COMPLETA!'; bigColor = '#ffe27a'; tint = 0x0a1a30;
-      sub = `Pontos: ${gs.score}   ·   Tempo: ${gs.elapsed.toFixed(1)}s   ·   Vidas: ${p.hp}`; hint = 'R para jogar de novo';
+      sub = `Pontos: ${gs.score}   ·   Tempo: ${gs.elapsed.toFixed(1)}s   ·   Vidas: ${p.hp}`; hint = 'R jogar de novo   ·   T trocar de herói';
     }
     this.overlay.setVisible(!!big).setFillStyle(tint, 0.6);
     this.big.setText(big).setColor(bigColor);
