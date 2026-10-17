@@ -1,4 +1,4 @@
-import { GAME_W, GAME_H, HALL, PICKUPS, xpNeeded } from '../config.js';
+import { GAME_W, GAME_H, HALL, CAMERA_ZOOM, PICKUPS, xpNeeded } from '../config.js';
 import { ITEM } from '../assets.js';
 import { PASSIVES, rollCards } from '../upgrades.js';
 import Controls from '../systems/controls.js';
@@ -40,6 +40,7 @@ export default class HallScene extends Phaser.Scene {
       bannerText: '', bannerT: 0, endT: 0, numbers: 0, result: null,
     });
     const cam = this.cameras.main;
+    cam.setZoom(CAMERA_ZOOM);
     cam.setBounds(0, 0, HALL.w, HALL.h);
     cam.startFollow(this.hero.sprite, true, 0.12, 0.12);
     if (!this.scene.isActive('UI')) this.scene.launch('UI');
@@ -98,7 +99,7 @@ export default class HallScene extends Phaser.Scene {
 
   renderLight(dt) {
     const cam = this.cameras.main, h = this.hero;
-    this.darkness.render(dt, cam, h.x - cam.scrollX, h.y - 22 - cam.scrollY);
+    this.darkness.render(dt, cam, h.x, h.y - 22);
   }
 
   // ======================================================== MOVIMENTO E BUSCA

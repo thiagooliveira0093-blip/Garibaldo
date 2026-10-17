@@ -13,19 +13,20 @@ export default class Darkness {
     this.t = 0;
   }
 
-  // sx, sy = posição do herói NA TELA
-  render(dt, camera, sx, sy) {
+  // hx, hy = posição do herói NO MUNDO; a câmera pode ter zoom, então converte para a tela
+  render(dt, camera, hx, hy) {
     this.t += dt;
-    const rt = this.rt, b = this.brush;
+    const rt = this.rt, b = this.brush, z = camera.zoom, mid = camera.midPoint;
+    const toX = x => (x - mid.x) * z + GAME_W / 2, toY = y => (y - mid.y) * z + GAME_H / 2;
     rt.clear();
     rt.fill(0x05030a, this.level);
     const flick = 1 + Math.sin(this.t * 9) * 0.02 + Math.sin(this.t * 23) * 0.015;
-    b.setScale((this.heroRadius * 2 * flick) / 256);
-    rt.erase(b, sx, sy);
+    b.setScale((this.heroRadius * 2 * flick * z) / 256);
+    rt.erase(b, toX(hx), toY(hy));
     for (const l of this.lights) {
-      const lx = l.x - camera.scrollX, ly = l.y - camera.scrollY;
-      if (lx < -l.r || lx > GAME_W + l.r || ly < -l.r || ly > GAME_H + l.r) continue;
-      b.setScale(((l.r * 2) * (1 + Math.sin(this.t * 11 + l.x) * 0.05)) / 256);
+      const lx = toX(l.x), ly = toY(l.y), lr = l.r * z;
+      if (lx < -lr || lx > GAME_W + lr || ly < -lr || ly > GAME_H + lr) continue;
+      b.setScale(((l.r * 2 * z) * (1 + Math.sin(this.t * 11 + l.x) * 0.05)) / 256);
       rt.erase(b, lx, ly);
     }
   }

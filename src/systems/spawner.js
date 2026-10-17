@@ -19,7 +19,7 @@ export default class Spawner {
     while (this.acc >= 1) {
       this.acc -= 1;
       if (s.enemies.length >= RUN.maxEnemies) break;
-      const type = this.pick(spawnMix(t)), p = this.edge(520 + Math.random() * 140);
+      const type = this.pick(spawnMix(t)), p = this.edge(680 + Math.random() * 140);
       s.spawnEnemy(type, p.x, p.y, { hpMul: hpScale(t), elite: t > ELITE.from && type !== 'bat' && Math.random() < ELITE.chance });
     }
     // eventos: um anel de inimigos fecha o cerco
@@ -28,7 +28,7 @@ export default class Spawner {
         this.nextEvent[i] += ev.every;
         const n = ev.count(t);
         for (let k = 0; k < n; k++) {
-          const a = (k / n) * Math.PI * 2, p = this.clamp(s.hero.x + Math.cos(a) * 460, s.hero.y + Math.sin(a) * 460);
+          const a = (k / n) * Math.PI * 2, p = this.clamp(s.hero.x + Math.cos(a) * 560, s.hero.y + Math.sin(a) * 560);
           s.spawnEnemy(ev.type, p.x, p.y, { hpMul: hpScale(t) });
         }
         s.banner('A HORDA SE APROXIMA!', 1.8);

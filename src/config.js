@@ -6,6 +6,7 @@ export const GAME_H = 540;
 
 // Salão: o herói luta numa sala fechada de pedra (tamanho em pixels). `wall` = espessura da parede.
 export const HALL = { w: 3200, h: 2400, wall: 128, tile: 64 };
+export const CAMERA_ZOOM = 0.75;   // menor = câmera mais distante (1 = como antes)
 
 // Partida: o chefe chega em `bossAt` segundos; matar o chefe vence a partida.
 export const RUN = { bossAt: 420, maxEnemies: 260 };
