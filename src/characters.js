@@ -1,94 +1,99 @@
-// Os 3 personagens jogáveis. Tudo que muda de um para o outro fica aqui:
-// atributos, armas (as 3 teclas 1/2/3), golpe corpo a corpo, dash e especial.
+// As 3 classes iniciais. Cada uma começa com 2 armas (teclas J e K), uma habilidade (L) e um
+// rolamento próprio. Armas e gemas estão em weapons.js.
 //
-// Sprites (96x80, pés em x=36,y=79). Todos usam o mesmo layout de quadros:
+// Sprites (96x80, pés em x=36,y=79). Layout de quadros (igual nas 3 classes):
 //   0-3 parado · 4-5 agachado · 6-7 dano · 8-13 correndo · 14 pulo · 15 queda
-//   16-21 ataque à distância · 22-23 dash · 24-27 morte · 28-33 golpe corpo a corpo
+//   16-21 ataque à distância "nativo" · 22-23 rolamento · 24-27 morte · 28-33 golpe de espada
+//   34-39 nativo na diagonal · 40-45 nativo para cima · 46-63 arco (só o guerreiro: horizontal, diagonal, cima)
 
-// Flags de cada arma (power):
-//   pierce  atravessa os inimigos        splash {radius,dmg}  explode em área ao acertar
-//   slow    deixa o inimigo lento        breaks  destrói tiros inimigos "destrutíveis"
-//   spread  ângulos extras (vários tiros)  ground  anda rente ao chão     spin  não gira com a mira
-//   solid   sem brilho (blend normal)    trail  cor das fagulhas que o tiro deixa
-//   sprite  { sheet, frame, anim, origin:[x,y] (ponto do quadro que fica na hitbox) }
-//   icon    { sheet, frame } no HUD
-
-const proj3 = frame => ({ sheet: 'proj3', frame });
-
+// `aimSets`: onde estão os quadros de cada arma à distância: [horizontal, diagonal, cima] (6 quadros cada).
+// Se a classe não tem os quadros de uma arma, usa `native` (a animação de ataque à distância dela).
 export const CHARACTERS = {
   mage: {
     id: 'mage', name: 'GARIBALDO', title: 'Mago',
-    desc: 'Poderes elementais e uma espada espiritual. Equilibrado, com a Explosão Arcana.',
-    // um sheet por poder: olhos, fecho e magia mudam de cor
+    desc: 'Anel de magia teleguiada e espada espiritual. Frágil, mas a magia busca o alvo.',
+    // um sheet por gema do Anel: olhos, fecho e magia mudam de cor
     sheets: { fire: 'assets/sprites/garibaldo_fire.png', ice: 'assets/sprites/garibaldo_ice.png', bolt: 'assets/sprites/garibaldo_bolt.png' },
-    variantByPower: true,
+    variantByGem: true,
     stats: { hp: 100, run: 250, crawl: 90, jump: 720, airJumps: 0 },
-    dash: { speed: 680, time: 0.2, cd: 0.6, hitDmg: 0 },
-    body: { w: 24 }, rim: 0xff7a2f,   // rim muda com o poder (setPower)
-    shoulder: { stand: [4, -30], crouch: [4, -21] }, muzzle: [24, -8],
-    rates: { shoot: 22, melee: 18 }, shootTime: 0.3,
+    roll: { time: 0.34, iframes: 0.26, speed: 540, cd: 0.3 },
+    body: { w: 24 }, rim: 0xff7a2f,   // o brilho da borda acompanha a gema
+    shoulder: { stand: [4, -30], crouch: [4, -21] },
+    native: [16, 34, 40], aimSets: { ring: [16, 34, 40], bow: null },
+    muzzle: { native: [24, -8] },
+    rates: { aim: 22, melee: 18 }, aimTime: 0.3,
     bars: { vida: 0.5, velocidade: 0.55, alcance: 1.0, forca: 0.6 },
-    powers: [
-      { name: 'Fogo', kind: 'fire', key: '1', color: 0xff7a2f, cd: 0.32, speed: 720, dmg: 3, radius: 8, sfx: 'fire',
-        sprite: { sheet: 'fireball', frame: 0, anim: 'shot-fire', origin: [21, 17] }, icon: { sheet: 'proj', frame: 19 },
-        splash: { radius: 70, dmg: 1.5 }, trail: 0xffb347 },
-      { name: 'Gelo', kind: 'ice', key: '2', color: 0x6fd6ff, cd: 0.24, speed: 900, dmg: 1.5, radius: 7, sfx: 'ice',
-        sprite: { sheet: 'proj', frame: 2, anim: 'shot-ice' }, icon: { sheet: 'proj', frame: 20 }, pierce: true, slow: true },
-      { name: 'Raio', kind: 'bolt', key: '3', color: 0xf6f35a, cd: 0.16, speed: 1150, dmg: 1, radius: 5, sfx: 'bolt',
-        sprite: { sheet: 'proj', frame: 4, anim: 'shot-bolt' }, icon: { sheet: 'proj', frame: 21 }, spread: [-0.13, 0, 0.13], breaks: true },
-    ],
-    melee: { name: 'Espada espiritual', time: 0.34, cd: 0.42, hitAt: 0.12, reach: 64, height: 66, dmg: 5, bossDmg: 6, energy: 3, moveFactor: 0.35, breaks: ['orb', 'big', 'mortar'], sfx: 'slash' },
+    weapons: ['ring', 'sword'], bonus: { ring: 1.25 },
+    sword: {
+      name: 'Espada espiritual', moveFactor: 0.35, energy: 3, sfx: 'slash', backstab: 1.5,
+      breaks: ['orb', 'big', 'mortar'],
+      combo: [
+        { dmg: 5, reach: 64, height: 66, time: 0.3, hitAt: 0.1, knock: 90, stun: 0.25, lunge: 70 },
+        { dmg: 5, reach: 64, height: 66, time: 0.3, hitAt: 0.1, knock: 90, stun: 0.25, lunge: 70 },
+        { dmg: 9, reach: 82, height: 74, time: 0.46, hitAt: 0.18, knock: 280, stun: 0.5, lunge: 130, finisher: true },
+      ],
+    },
     special: { kind: 'arcane', name: 'EXPLOSÃO ARCANA', label: 'ARCANO', dmg: 8, bossDmg: 12 },
   },
 
   warrior: {
     id: 'warrior', name: 'BRUNO', title: 'Guerreiro',
-    desc: 'Armadura pesada: muita vida e golpes brutais. A investida de escudo machuca quem estiver no caminho.',
+    desc: 'Armadura pesada e espadada brutal. Muita vida, rolamento curto e um arco para o longo alcance.',
     sheets: { base: 'assets/sprites/warrior.png' },
-    variantByPower: false,
+    variantByGem: false,
     stats: { hp: 160, run: 215, crawl: 80, jump: 690, airJumps: 0 },
-    dash: { speed: 600, time: 0.24, cd: 0.7, hitDmg: 4 },
+    roll: { time: 0.38, iframes: 0.26, speed: 470, cd: 0.34 },
     body: { w: 28 }, rim: 0xffe9b0,
-    shoulder: { stand: [5, -30], crouch: [5, -21] }, muzzle: [24, -4],
-    rates: { shoot: 15, melee: 15 }, shootTime: 0.4,
-    bars: { vida: 1.0, velocidade: 0.35, alcance: 0.45, forca: 1.0 },
-    powers: [
-      { name: 'Machado', kind: 'axe', key: '1', color: 0xcfd8e6, cd: 0.5, speed: 560, dmg: 3.5, radius: 12, sfx: 'throw', life: 1.1,
-        sprite: { sheet: 'proj3', frame: 5, anim: 'shot-axe' }, icon: proj3(14), pierce: true, spin: true, solid: true },
-      { name: 'Lança', kind: 'spear', key: '2', color: 0xe8dcc0, cd: 0.38, speed: 1000, dmg: 2.5, radius: 7, sfx: 'throw',
-        sprite: { sheet: 'proj3', frame: 4, anim: 'shot-spear', origin: [24, 16] }, icon: proj3(15), breaks: true, solid: true },
-      { name: 'Tremor', kind: 'quake', key: '3', color: 0xff8a2a, cd: 0.75, speed: 380, dmg: 3, radius: 14, sfx: 'boom', life: 1.4,
-        sprite: { sheet: 'proj3', frame: 9, anim: 'shot-quake' }, icon: proj3(16), pierce: true, ground: true, spin: true },
-    ],
-    melee: { name: 'Espadada', time: 0.42, cd: 0.5, hitAt: 0.15, reach: 84, height: 74, dmg: 8, bossDmg: 8, energy: 4, moveFactor: 0.2, breaks: ['orb', 'big', 'mortar'], sfx: 'slash' },
+    shoulder: { stand: [5, -30], crouch: [5, -21] },
+    native: [16, 34, 40], aimSets: { bow: [46, 52, 58], ring: null },
+    muzzle: { native: [24, -4], bow: [22, 2] },
+    rates: { aim: 18, melee: 15 }, aimTime: 0.3,
+    bars: { vida: 1.0, velocidade: 0.35, alcance: 0.6, forca: 1.0 },
+    weapons: ['sword', 'bow'], bonus: { sword: 1.25 },
+    sword: {
+      name: 'Espadada', moveFactor: 0.2, energy: 4, sfx: 'slash', backstab: 1.5,
+      breaks: ['orb', 'big', 'mortar'],
+      combo: [
+        { dmg: 8, reach: 84, height: 74, time: 0.4, hitAt: 0.14, knock: 120, stun: 0.3, lunge: 40 },
+        { dmg: 8, reach: 84, height: 74, time: 0.4, hitAt: 0.14, knock: 120, stun: 0.3, lunge: 40 },
+        { dmg: 14, reach: 100, height: 82, time: 0.58, hitAt: 0.22, knock: 340, stun: 0.65, lunge: 90, finisher: true },
+      ],
+    },
     special: { kind: 'quake', name: 'TERREMOTO', label: 'FÚRIA', dmg: 10, bossDmg: 12 },
   },
 
   archer: {
     id: 'archer', name: 'LEO', title: 'Arqueiro',
-    desc: 'Rápido e frágil, com pulo duplo. Flechas velozes e uma adaga para quem chega perto.',
+    desc: 'Rápido e frágil, com pulo duplo e rolamento longo. Arco carregado e adaga para golpes pelas costas.',
     sheets: { base: 'assets/sprites/archer.png' },
-    variantByPower: false,
+    variantByGem: false,
     stats: { hp: 80, run: 290, crawl: 110, jump: 770, airJumps: 1 },
-    dash: { speed: 760, time: 0.18, cd: 0.45, hitDmg: 0 },
+    roll: { time: 0.32, iframes: 0.3, speed: 640, cd: 0.26 },
     body: { w: 22 }, rim: 0xd2ffb0,
-    shoulder: { stand: [4, -28], crouch: [4, -19] }, muzzle: [20, 2],
-    rates: { shoot: 20, melee: 20 }, shootTime: 0.3,
-    bars: { vida: 0.35, velocidade: 1.0, alcance: 1.0, forca: 0.4 },
-    powers: [
-      { name: 'Flecha', kind: 'arrow', key: '1', color: 0xd8c8a0, cd: 0.2, speed: 1150, dmg: 1.6, radius: 5, sfx: 'bolt',
-        sprite: { sheet: 'proj3', frame: 0, anim: 'shot-arrow', origin: [24, 16] }, icon: proj3(11), breaks: true, solid: true },
-      { name: 'Fogo', kind: 'firearrow', key: '2', color: 0xff8a2a, cd: 0.45, speed: 900, dmg: 2.5, radius: 7, sfx: 'fire',
-        sprite: { sheet: 'proj3', frame: 2, anim: 'shot-firearrow', origin: [24, 16] }, icon: proj3(12), splash: { radius: 55, dmg: 1.5 }, trail: 0xff8a2a },
-      { name: 'Tripla', kind: 'triple', key: '3', color: 0xb07a40, cd: 0.38, speed: 1000, dmg: 1.2, radius: 5, sfx: 'bolt',
-        sprite: { sheet: 'proj3', frame: 0, anim: 'shot-arrow', origin: [24, 16] }, icon: proj3(13), spread: [-0.17, 0, 0.17], breaks: true, solid: true },
-    ],
-    melee: { name: 'Adaga', time: 0.3, cd: 0.25, hitAt: 0.1, reach: 46, height: 56, dmg: 3, bossDmg: 3, energy: 3, moveFactor: 0.6, breaks: ['orb', 'mortar'], sfx: 'slash' },
+    shoulder: { stand: [4, -28], crouch: [4, -19] },
+    native: [16, 34, 40], aimSets: { bow: [16, 34, 40], ring: null },
+    muzzle: { native: [20, 2] },
+    rates: { aim: 20, melee: 20 }, aimTime: 0.3,
+    bars: { vida: 0.35, velocidade: 1.0, alcance: 1.0, forca: 0.5 },
+    weapons: ['bow', 'sword'], bonus: { bow: 1.25 },
+    sword: {
+      name: 'Adaga', moveFactor: 0.6, energy: 3, sfx: 'slash', backstab: 2.2,
+      breaks: ['orb', 'mortar'],
+      combo: [
+        { dmg: 3, reach: 46, height: 56, time: 0.24, hitAt: 0.08, knock: 40, stun: 0.18, lunge: 110 },
+        { dmg: 3, reach: 46, height: 56, time: 0.24, hitAt: 0.08, knock: 40, stun: 0.18, lunge: 110 },
+        { dmg: 6, reach: 58, height: 60, time: 0.34, hitAt: 0.12, knock: 150, stun: 0.35, lunge: 170, finisher: true },
+      ],
+    },
     special: { kind: 'rain', name: 'CHUVA DE FLECHAS', label: 'FOCO', dmg: 8, bossDmg: 12 },
   },
 };
 
 export const CHARACTER_LIST = ['mage', 'warrior', 'archer'].map(id => CHARACTERS[id]);
 
-// chave do sheet/animação de um personagem para o poder atual
-export const variantOf = (char, power) => (char.variantByPower ? char.powers[power].kind : 'base');
+// Chave do sheet/animação: no mago muda com a gema do Anel; nas outras classes é sempre "base".
+export const variantOf = (char, gem) => (char.variantByGem ? ['fire', 'ice', 'bolt'][gem] : 'base');
+
+// [horizontal, diagonal, cima] dos quadros de uma arma à distância ('bow' ou 'ring'), com o fallback nativo
+export const aimSetOf = (char, type) => char.aimSets[type] || char.native;
+export const muzzleOf = (char, type) => char.muzzle[type] || char.muzzle.native;

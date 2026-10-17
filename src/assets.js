@@ -2,7 +2,7 @@
 // Para trocar a arte: substitua o PNG mantendo o tamanho do quadro e a ordem dos quadros,
 // ou ajuste os números aqui (frameWidth/frameHeight e a lista "frames" de cada animação).
 
-import { CHARACTERS } from './characters.js';
+import { CHARACTERS, aimSetOf } from './characters.js';
 
 // Sheets dos personagens (96x80), definidos em characters.js. Chave: `<personagem>-<variante>`.
 export const CHARACTER_SHEETS = Object.values(CHARACTERS).flatMap(char =>
@@ -32,18 +32,24 @@ export const IMAGES = [
 // repeat: -1 = loop, 0 = toca uma vez
 // Layout dos 3 personagens (96x80), igual em todos: a chave final é `<personagem>-<variante>-<nome>`.
 // 0-3 parado · 4-5 agachado · 6-7 dano · 8-13 correndo · 14 pulo · 15 queda
-// 16-21 ataque à distância (shoot) · 22-23 dash · 24-27 morte · 28-33 golpe corpo a corpo (melee)
-// 34-39 atirando na diagonal (shootDiag) · 40-45 atirando para cima (shootUp)
+// 16-21 ataque à distância nativo · 22-23 rolamento · 24-27 morte · 28-33 golpe de espada (melee)
+// 34-45 nativo na diagonal e para cima · 46-63 arco do guerreiro (ver aimSets em characters.js)
+// Armas à distância: anima `ring`/`bow` (horizontal), `ringDiag`/`bowDiag` e `ringUp`/`bowUp`.
 const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
-const characterAnims = char => [
-  ['idle', [0, 1, 2, 3], 5], ['run', range(8, 13), 13], ['jump', [14], 1], ['fall', [15], 1],
-  ['crouch', [4, 5], 3], ['crawl', [4, 5], 8], ['dash', [22, 23], 16], ['hurt', [6, 7], 6],
-  ['dead', range(24, 27), 6, 0],
-  ['shoot', range(16, 21), char.rates.shoot, 0],
-  ['melee', range(28, 33), char.rates.melee, 0],
-  ['shootDiag', range(34, 39), char.rates.shoot, 0],   // atirando mirando na diagonal
-  ['shootUp', range(40, 45), char.rates.shoot, 0],     // atirando mirando para cima
-];
+const characterAnims = char => {
+  const list = [
+    ['idle', [0, 1, 2, 3], 5], ['run', range(8, 13), 13], ['jump', [14], 1], ['fall', [15], 1],
+    ['crouch', [4, 5], 3], ['crawl', [4, 5], 8], ['roll', [22, 23], 16], ['hurt', [6, 7], 6],
+    ['dead', range(24, 27), 6, 0],
+    ['melee', range(28, 33), char.rates.melee, 0],
+  ];
+  for (const type of ['ring', 'bow']) {
+    const [h, d, u] = aimSetOf(char, type);
+    list.push([type, range(h, h + 5), char.rates.aim, 0], [`${type}Diag`, range(d, d + 5), char.rates.aim, 0],
+      [`${type}Up`, range(u, u + 5), char.rates.aim, 0]);
+  }
+  return list;
+};
 
 export const ANIMS = [
   ...CHARACTER_SHEETS.flatMap(({ key, char, variant }) => characterAnims(char).map(([name, frames, rate, repeat]) => (

@@ -2,10 +2,56 @@ import Enemy from './Enemy.js';
 import Boss from './Boss.js';
 import { GAME_W } from '../config.js';
 import { uiStyle } from '../systems/ui-style.js';
+import { sfx } from '../systems/sfx.js';
 
-// Soldado: anda no chão e atira reto (agache para desviar) ou mirado se você estiver acima.
+// Soldado: metade corre até você e dá um golpe de espada (brilha em vermelho antes: role por dentro
+// ou interrompa com um golpe forte); a outra metade fica longe e atira reto (agache) ou mirado.
 class Grunt extends Enemy {
+  constructor(scene, spawn) {
+    super(scene, spawn);
+    this.style = Math.random() < 0.5 ? 'melee' : 'shooter';
+    this.mState = 'idle'; this.mT = 0; this.mCd = Phaser.Math.FloatBetween(0.3, 1);
+    if (this.style === 'melee') { this.speedMul = 1.45; this.glowColor = 0xff3355; }
+  }
+  onStagger() { this.mState = 'idle'; this.mCd = 0.5; }
+
+  behaveMelee(dt) {
+    const p = this.player, dx = p.x - this.x, dy = p.y - this.y, sc = this.sc;
+    this.mCd -= dt;
+    if (this.mState === 'idle') {
+      this.walker(0, 46 * sc);                       // aproxima até ficar colado
+      const close = this.entered && Math.abs(dx) < 80 * sc && Math.abs(dy) < 70 * sc;
+      if (close && this.mCd <= 0 && p.alive) {      // prepara o golpe: para e brilha
+        this.mState = 'wind'; this.mT = 0.55; this.tele = this.mT; this.teleMax = this.mT;
+        this.setVelocityX(0); this.facing = dx < 0 ? -1 : 1;
+      }
+      this.anim(this.walking ? 'walk' : 'idle');
+    } else if (this.mState === 'wind') {
+      this.setVelocityX(0);
+      this.mT -= dt; this.tele = Math.max(0, this.mT);
+      this.anim('attack');
+      if (this.mT <= 0) { this.mState = 'rest'; this.mT = 0.7; this.swing(); }
+    } else {                                         // descanso depois do golpe
+      this.setVelocityX(0);
+      this.mT -= dt;
+      this.anim('idle');
+      if (this.mT <= 0) { this.mState = 'idle'; this.mCd = 0.5; }
+    }
+  }
+
+  swing() {
+    const s = this.scene, p = this.player, sc = this.sc, f = this.facing;
+    const box = new Phaser.Geom.Rectangle(f > 0 ? this.x : this.x - 78 * sc, this.y - 62 * sc, 78 * sc, 62 * sc);
+    s.fx.slashArc(this.x + f * 34 * sc, this.y - 30 * sc, f, 0xff3355);
+    sfx('slash');
+    if (s.state !== 'play') return;
+    if (Phaser.Geom.Intersects.RectangleToRectangle(p.hurtbox(), box)) {
+      if (p.dashT > 0) s.perfectDodge(); else s.damagePlayer();   // rolar por dentro do golpe = esquiva perfeita
+    }
+  }
+
   behave(dt) {
+    if (this.style === 'melee') { this.behaveMelee(dt); return; }
     this.walker(180, 420);
     this.enemyFire(dt, 0.5, 1.6, 2.6, () => {
       const m = this.muzzle(), pc = this.player.body.center;

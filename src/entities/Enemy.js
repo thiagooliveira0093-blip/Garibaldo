@@ -22,6 +22,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
       hp: def.hp, maxHp: def.hp, facing: -1, fireT: Phaser.Math.FloatBetween(0.6, 1.4),
       tele: 0, teleMax: 1, slowT: 0, flashT: 0, spawnT: 0, spawnMax: 1, entered: false,
       volley: 0, dead: false, t: Math.random() * 10, walking: false, glowColor: 0xc04bff,
+      stunT: 0, turnLock: 0, lockFacing: -1,
     });
     this.glow = scene.add.image(0, 0, 'proj', FRAME.glow).setDepth(14).setBlendMode('ADD').setVisible(false);
     this.anim('idle');
@@ -46,15 +47,34 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
       this.setAlpha(1 - Math.max(0, this.spawnT) / this.spawnMax);
       return;
     }
+    this.turnLock -= dt;
+    if (this.stunT > 0) { // atordoado: perde a ação, desliza com o empurrão e volta ao normal
+      this.stunT -= dt;
+      this.tele = 0;
+      if (this.def.gravity) this.setVelocityX(this.body.velocity.x * Math.exp(-6 * dt));
+      this.anim('idle');
+      this.setFlipX(this.facing < 0);
+      this.updateGlow();
+      return;
+    }
     this.behave(this.slowT > 0 ? dt * ICE_SLOW.factor : dt);
+    if (this.turnLock > 0) this.facing = this.lockFacing;   // rolaram por ele: continua olhando para o outro lado
     this.setFlipX(this.facing < 0);
     this.updateGlow();
-
-    const s = this.scene, p = this.player;
-    if (s.state === 'play' && p.dashT <= 0 && Phaser.Geom.Intersects.RectangleToRectangle(p.hurtbox(), this.bodyRect())) s.damagePlayer();
+    // Sem dano ao encostar (como no Dead Cells): só ataques com sinal antes machucam.
   }
 
   flashHit() { this.flashT = 0.06; this.setTintFill(0xffffff); }
+
+  // golpe forte interrompe o que ele estava fazendo (chefe e brutamontes têm armadura)
+  stagger(time, knock = 0) {
+    this.stunT = Math.max(this.stunT, time);
+    this.tele = 0;
+    this.fireT = Math.max(this.fireT, 0.7);
+    if (this.def.gravity) this.setVelocityX(knock);
+    this.onStagger();
+  }
+  onStagger() {}
 
   // atira com "telegrafia": brilha por teleTime segundos antes, para o player poder reagir
   enemyFire(dt, teleTime, cdMin, cdMax, fn) {
@@ -98,7 +118,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         if (ad > far) mv = Math.sign(d); else if (ad < near) mv = -Math.sign(d);
       }
     }
-    this.setVelocityX(mv * this.def.speed * (this.slowT > 0 ? ICE_SLOW.factor : 1));
+    this.setVelocityX(mv * this.def.speed * (this.speedMul || 1) * (this.slowT > 0 ? ICE_SLOW.factor : 1));
     if (this.entered) this.x = Phaser.Math.Clamp(this.x, s.camX + hw + 5, s.camX + GAME_W - hw - 5);
     this.walking = mv !== 0;
   }

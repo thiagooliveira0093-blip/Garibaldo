@@ -63,6 +63,22 @@ export default class Effects {
     this.burst(x, y, 0xffffff, 12, 200, -160, 600);
   }
 
+  // meia-lua de um golpe de espada (inimigos); `facing` espelha para a esquerda
+  slashArc(x, y, facing, color = 0xffffff, radius = 46) {
+    const g = this.s.add.graphics().setDepth(16).setPosition(x, y).setScale(facing, 1);
+    g.lineStyle(7, color, 0.95).beginPath().arc(0, 0, radius, -1.1, 1.0, false).strokePath();
+    g.lineStyle(3, 0xffffff, 1).beginPath().arc(0, 0, radius - 3, -1.0, 0.9, false).strokePath();
+    this.s.tweens.add({ targets: g, alpha: 0, scaleX: facing * 1.25, duration: 190, onComplete: () => g.destroy() });
+  }
+
+  // número de dano que sobe e some; crítico (golpe pelas costas) é maior e amarelo
+  damageNumber(x, y, dmg, crit = false) {
+    const txt = dmg >= 10 ? String(Math.round(dmg)) : String(Math.round(dmg * 10) / 10);
+    const t = this.s.add.text(x + Phaser.Math.Between(-8, 8), y, crit ? `${txt}!` : txt, uiStyle(crit ? 22 : 14, crit ? '#ffd24a' : '#ffffff')).setOrigin(0.5).setDepth(21);
+    if (crit) { t.setScale(1.5); this.s.tweens.add({ targets: t, scale: 1, duration: 140 }); }
+    this.s.tweens.add({ targets: t, y: y - 38, alpha: 0, duration: crit ? 900 : 650, ease: 'Quad.easeOut', onComplete: () => t.destroy() });
+  }
+
   floater(x, y, text, color = '#ffffff') {
     const t = this.s.add.text(x, y, text, uiStyle(14, color)).setOrigin(0.5).setDepth(20);
     this.s.tweens.add({ targets: t, y: y - 40, alpha: 0, duration: 1000, ease: 'Quad.easeIn', onComplete: () => t.destroy() });

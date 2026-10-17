@@ -50,6 +50,28 @@ function arcTrail(img, S, a0, a1, rIn, rOut, col, edge) {
 
 const CX = 30, HEM = 59; // centro do corpo e linha do chão (antes da folga do quadro)
 
+// Pose de arco para quem não é o arqueiro (usada pelo guerreiro): o arco inteiro gira em torno do ombro S.
+// c = { arm, skin } cores do braço e da mão.
+function bowPose(img, S, P, c) {
+  const A = P.aim || 0, ca = Math.cos(A), sa = Math.sin(A);
+  const T = (x, y) => [S[0] + (x - S[0]) * ca - (y - S[1]) * sa, S[1] + (x - S[0]) * sa + (y - S[1]) * ca];
+  const L = (p, q, col, t) => { const a = T(p[0], p[1]), b = T(q[0], q[1]); img.line(a[0], a[1], b[0], b[1], col, t); };
+  const by = S[1] + 2, bx = S[0] + 12, pull = 3 + P.draw * 7;
+  const top = [bx - 1, by - 16], bot = [bx - 1, by + 16], mid = [bx + 5, by], nx = bx - pull;
+  const fh = T(bx - 1, by), fh2 = T(bx - 2, by);
+  img.line(S[0], S[1], fh2[0], fh2[1], c.arm, 4); img.circle(fh[0], fh[1], 2.4, c.skin);     // braço da frente segura o arco
+  L(top, [mid[0] - 1, by - 8], AC.wood, 2); L([mid[0] - 1, by - 8], [mid[0], by], AC.woodL, 3);
+  L([mid[0], by], [mid[0] - 1, by + 8], AC.woodL, 3); L([mid[0] - 1, by + 8], bot, AC.wood, 2);
+  L(top, [nx, by], alpha(AC.string, 0.9), 1); L([nx, by], bot, alpha(AC.string, 0.9), 1);
+  if (P.arrow) {
+    L([nx, by], [bx + 12, by], AC.shaft, 1);
+    img.poly([T(bx + 12, by - 2), T(bx + 16, by), T(bx + 12, by + 2)], AC.steel);
+    L([nx, by - 2], [nx + 4, by - 2], AC.fletch, 1); L([nx, by + 1], [nx + 4, by + 1], AC.fletch, 1);
+  }
+  const back = T(nx, by);
+  img.line(S[0], S[1] + 1, back[0], back[1], c.arm, 3); img.circle(back[0], back[1], 2.2, c.skin);   // braço de trás puxa a corda
+}
+
 // ===================================================================== GUERREIRO
 const WC = {
   steel: hex('#9aa7bd'), steelD: hex('#66748c'), steelL: hex('#d4dcea'), steelDD: hex('#46506a'),
@@ -115,6 +137,8 @@ function warrior(img, o = {}) {
       img.poly([[H[0] + dx * 4 + px, H[1] + dy * 4 + py], [tip[0] - dx * 2, tip[1] - dy * 2], [H[0] + dx * 4 - px, H[1] + dy * 4 - py]], hex('#ffffff'));
       img.line(H[0] + dx * 3 + px * 5, H[1] + dy * 3 + py * 5, H[0] + dx * 3 - px * 5, H[1] + dy * 3 - py * 5, WC.gold, 2);
     }
+  } else if (P.arm === 'bow') {
+    bowPose(img, S, P, { arm: WC.steelD, skin: WC.steel });
   } else {
     img.line(S[0], S[1], S[0] + 2, S[1] + 10, WC.steelD, 4); img.line(S[0] + 1, S[1], S[0] + 3, S[1] + 9, WC.steel, 1); gauntlet(S[0] + 3, S[1] + 12);
   }
@@ -245,6 +269,8 @@ const frames = (draw, lying, kit) => {
   // ataque à distância mirando na diagonal (34-39) e para cima (40-45)
   kit.rangedDiag.forEach((p, i) => add(`rangedd${i}`, im => draw(im, { fF: [6, 0], fB: [-5, 0], ...p })));
   kit.rangedUp.forEach((p, i) => add(`rangedu${i}`, im => draw(im, { fF: [6, 0], fB: [-5, 0], ...p })));
+  // arco para classes que não são o arqueiro (46-51 horizontal, 52-57 diagonal, 58-63 para cima)
+  (kit.bowSets || []).forEach(([tag, arr]) => arr.forEach((p, i) => add(`${tag}${i}`, im => draw(im, { fF: [6, 0], fB: [-5, 0], ...p }))));
   return f;
 };
 
@@ -260,7 +286,12 @@ function render(fr, file) {
 // Guerreiro: arremesso de machado (ranged) e espadada (melee)
 const throwAim = sas => [[0.3, 1, -2], [0.8, 1, -3], [1, 1, -1], [1, 1, 2], [1, 0, 4], [0.6, 0, 2]]
   .map(([ext, axe, lean], i) => ({ arm: 'throw', sa: sas[i], ext, axe, lean, ...(i === 1 ? { plume: 3 } : {}), ...(i >= 3 ? { plume: 4 + (i - 3) } : {}) }));
+const bowFrames = aim => [
+  { draw: 0.1, arrow: true, lean: -1 }, { draw: 0.4, arrow: true, lean: -1 }, { draw: 0.8, arrow: true, lean: -2 },
+  { draw: 1, arrow: true, lean: -2, plume: 3 }, { draw: 0.1, arrow: false, lean: 1, plume: 4 }, { draw: 0, arrow: false, lean: 0 },
+].map(p => ({ arm: 'bow', aim, ...p }));
 render(frames(warrior, warriorLying, {
+  bowSets: [['bowh', bowFrames(0)], ['bowd', bowFrames(-0.7)], ['bowu', bowFrames(-1.4)]],
   rangedDiag: throwAim([-2.1, -2.4, -1.9, -1.1, -0.8, -0.5]),
   rangedUp: throwAim([-2.2, -2.5, -2.1, -1.8, -1.55, -1.25]),
   ranged: [
@@ -344,6 +375,16 @@ function genProjectiles() {
   P.at(14); P.line(16, 6, 16, 27, WC.leather, 3); P.poly([[16, 6], [27, 4], [28, 14], [16, 15]], WC.steelL); P.poly([[16, 8], [25, 7], [26, 12], [16, 12]], hex('#ffffff'));
   P.at(15); P.line(3, 25, 25, 7, AC.wood, 3); P.poly([[22, 3], [29, 3], [29, 10]], WC.steelL); P.rect(8, 20, 3, 3, WC.red);
   P.at(16); P.poly([[4, 28], [11, 6], [18, 28]], hex('#ff8a2a')); P.poly([[12, 28], [19, 10], [26, 28]], hex('#ffd24a'));
+  // ícones das armas no HUD: 17 espada · 18 arco · 19 anel
+  P.at(17);
+  P.line(7, 25, 25, 7, WC.steelL, 4); P.line(8, 24, 24, 8, hex('#ffffff'), 1);
+  P.line(9, 19, 15, 25, WC.gold, 3); P.line(5, 27, 8, 24, WC.leather, 3); P.circle(4, 28, 2, WC.gold);
+  P.at(18);
+  P.line(11, 3, 20, 10, AC.wood, 3); P.line(20, 10, 22, 16, AC.woodL, 3); P.line(22, 16, 20, 22, AC.woodL, 3); P.line(20, 22, 11, 29, AC.wood, 3);
+  P.line(11, 3, 11, 29, alpha(AC.string, 0.95), 1); P.line(8, 16, 26, 16, AC.shaft, 1); P.poly([[24, 13], [30, 16], [24, 19]], AC.steel);
+  P.at(19);
+  for (let k = 0; k < 28; k++) { const a = (k / 28) * Math.PI * 2; P.rect(16 + Math.cos(a) * 8 - 1.5, 19 + Math.sin(a) * 8 - 1.5, 3, 3, WC.gold); }
+  P.poly([[16, 3], [21, 9], [16, 15], [11, 9]], hex('#ff8a2a')); P.poly([[16, 6], [18, 9], [16, 12], [14, 9]], hex('#ffe9a0'));
   finish(P, 32, 32, false);
   save(P, 'sprites/proj3.png');
 }

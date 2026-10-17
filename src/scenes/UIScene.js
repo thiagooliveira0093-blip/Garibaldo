@@ -1,6 +1,7 @@
 import { GAME_W, GAME_H, HIT_DAMAGE } from '../config.js';
 import { FRAME } from '../assets.js';
 import { uiStyle, FONT } from '../systems/ui-style.js';
+import { WEAPONS, GEMS } from '../weapons.js';
 import { isMuted } from '../systems/sfx.js';
 
 const HP_BAR = { x: 34, y: 12, w: 200, h: 20 };
@@ -15,7 +16,8 @@ export default class UIScene extends Phaser.Scene {
     this.hpText = this.add.text(HP_BAR.x + HP_BAR.w / 2, HP_BAR.y + HP_BAR.h / 2, '', uiStyle(12)).setOrigin(0.5);
     this.hpPlayer = null; this.hpShown = 0; this.hpTrail = 0;
     this.energyText = this.add.text(186, 51, 'ARCANO', uiStyle(12, '#d7c4ff')).setOrigin(0, 0.5);
-    this.slots = []; this.slotChar = null;
+    this.slots = []; this.slotObjs = []; this.gems = []; this.slotChar = null;
+    this.rollText = this.add.text(86, 66, 'ROLAR [Shift]', uiStyle(10, '#9fe8ff')).setOrigin(0, 0.5);
     this.scoreText = this.add.text(GAME_W / 2, 26, '', uiStyle(22, '#ffe27a')).setOrigin(0.5);
     this.comboText = this.add.text(GAME_W / 2, 50, '', uiStyle(14, '#ff9b3d')).setOrigin(0.5);
     this.bossName = this.add.text(GAME_W - 334, 44, '', uiStyle(12, '#ffd6ff')).setOrigin(0, 0.5);
@@ -47,19 +49,31 @@ export default class UIScene extends Phaser.Scene {
     this.hpText.setText(`${Math.ceil(p.hp)} / ${p.maxHp}`);
   }
 
-  // as 3 armas/poderes do personagem escolhido (teclas 1, 2, 3)
+  // as 2 armas do herói (J e K) e, se ele usa o Anel, as 3 gemas (1, 2, 3)
   buildSlots(char) {
-    for (const sl of this.slots) { sl.icon.destroy(); sl.name.destroy(); sl.key.destroy(); }
-    this.slotChar = char.id;
-    this.slots = char.powers.map((pw, i) => {
-      const x = 14 + i * 74, y = GAME_H - 52;
-      return {
-        x, y,
-        icon: this.add.image(x + 16, y + 20, pw.icon.sheet, pw.icon.frame).setBlendMode(pw.solid ? 'NORMAL' : 'ADD'),
-        name: this.add.text(x + 30, y + 14, pw.name, uiStyle(12)).setOrigin(0, 0.5),
-        key: this.add.text(x + 30, y + 28, pw.key, { fontFamily: FONT, fontSize: '10px', color: '#888888' }).setOrigin(0, 0.5),
-      };
+    for (const o of this.slotObjs) o.destroy();
+    this.slotObjs = []; this.slotChar = char.id;
+    const small = { fontFamily: FONT, fontSize: '10px', color: '#aaaaaa' };
+    this.slots = char.weapons.map((id, i) => {
+      const w = WEAPONS[id], x = 14 + i * 92, y = GAME_H - 52;
+      this.slotObjs.push(
+        this.add.image(x + 18, y + 20, w.icon.sheet, w.icon.frame),
+        this.add.text(x + 36, y + 12, w.name, uiStyle(12)).setOrigin(0, 0.5),
+        this.add.text(x + 36, y + 26, i === 0 ? 'J' : 'K', small).setOrigin(0, 0.5),
+      );
+      return { x, y, w };
     });
+    this.gems = [];
+    if (char.weapons.includes('ring')) {
+      GEMS.forEach((gem, i) => {
+        const x = 14 + 2 * 92 + 6 + i * 32, y = GAME_H - 52;
+        this.slotObjs.push(
+          this.add.image(x + 14, y + 16, gem.icon.sheet, gem.icon.frame).setBlendMode('ADD'),
+          this.add.text(x + 14, y + 33, gem.key, small).setOrigin(0.5),
+        );
+        this.gems.push({ x, y, gem });
+      });
+    }
   }
 
   update() {
@@ -79,16 +93,30 @@ export default class UIScene extends Phaser.Scene {
     const label = p.char.special.label;
     this.energyText.setText(full ? `${label} PRONTO! [L]` : label).setColor(full ? '#ffe27a' : '#d7c4ff');
 
+    // armas: o contorno acende quando a arma está em uso; a espada mostra em que golpe do combo está
     this.slots.forEach((sl, i) => {
-      const sel = i === p.power, pw = p.powers[i];
-      g.fillStyle(sel ? 0xffffff : 0x000000, sel ? 0.13 : 0.4).fillRect(sl.x, sl.y, 68, 40);
-      g.lineStyle(sel ? 2 : 1, sel ? pw.color : 0xffffff, sel ? 1 : 0.2).strokeRect(sl.x + 0.5, sl.y + 0.5, 67, 39);
-      sl.name.setColor(sel ? '#ffffff' : '#aaaaaa');
-      if (sel && p.cd > 0) {
-        const k = Math.min(1, p.cd / pw.cd);
-        g.fillStyle(0x000000, 0.5).fillRect(sl.x, sl.y + 40 - 40 * k, 68, 40 * k);
+      const t = sl.w.type;
+      const active = (t === 'melee' && p.meleeT > 0) || (t === 'bow' && p.chargeSlot === i) || (t === 'ring' && p.castT > 0.05);
+      g.fillStyle(0x000000, 0.45).fillRect(sl.x, sl.y, 86, 40);
+      g.lineStyle(active ? 2 : 1, active ? 0xffe27a : 0xffffff, active ? 1 : 0.25).strokeRect(sl.x + 0.5, sl.y + 0.5, 85, 39);
+      if (t === 'melee') {
+        for (let k = 0; k < 3; k++) g.fillStyle(p.comboT > 0 && k <= p.comboStep ? 0xffe27a : 0x555555).fillRect(sl.x + 36 + k * 11, sl.y + 33, 9, 3);
+      } else if (p.cd > 0) {
+        const k = Math.min(1, p.cd / sl.w.cd);   // recarga
+        g.fillStyle(0x000000, 0.5).fillRect(sl.x, sl.y + 40 - 40 * k, 86, 40 * k);
       }
     });
+    this.gems.forEach(({ x, y, gem }, i) => {
+      const sel = i === p.gem;
+      g.fillStyle(sel ? 0xffffff : 0x000000, sel ? 0.14 : 0.45).fillRect(x, y, 28, 40);
+      g.lineStyle(sel ? 2 : 1, sel ? gem.color : 0xffffff, sel ? 1 : 0.2).strokeRect(x + 0.5, y + 0.5, 27, 39);
+    });
+
+    // rolamento: barrinha que enche enquanto recarrega
+    const roll = p.char.roll, rk = 1 - Phaser.Math.Clamp(p.rollCd / (roll.time + roll.cd), 0, 1);
+    g.fillStyle(0x120a1a).fillRect(14, 62, 66, 8);
+    g.fillStyle(rk >= 1 ? 0x9fe8ff : 0x4a6a8a).fillRect(15, 63, 64 * rk, 6);
+    this.rollText.setPosition(86, 66).setColor(rk >= 1 ? '#9fe8ff' : '#6a7a8a');
 
     this.scoreText.setText(String(gs.score).padStart(7, '0'));
     this.comboText.setText(gs.combo > 1 ? `COMBO x${gs.combo}` : '');

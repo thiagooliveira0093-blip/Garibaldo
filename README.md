@@ -1,16 +1,30 @@
 # Garibaldo — Guerra Arcana
 
-Run'n'gun 2D estilo Metal Slug feito em **Phaser 3**. A mecânica principal é atirar poderes
-e desviar dos poderes inimigos. Desviar bem recompensa: passar de raspão (*graze*) e atravessar
-tiros com o dash (*esquiva perfeita*) enchem a barra do especial.
+Ação 2D feita em **Phaser 3**, caminhando para o estilo **Dead Cells**: combate com peso, rolamento
+com invulnerabilidade, inimigos que avisam antes de atacar e armas que se encaixam em estilos de jogo.
+(A versão run'n'gun anterior está no histórico do Git.)
 
-Você escolhe um de **3 heróis** antes de começar:
+**Combate**
+- **2 armas por vez** (J e K) + **habilidade** (L, enche ao acertar e desviar) + **rolamento** (Shift/C).
+- **Espada:** combo de 3 golpes (o 3º é o finalizador: empurra e atordoa). Encadeie apertando de novo
+  logo depois do corte. Destrói tiros pequenos.
+- **Arco:** toque = flecha fraca; **segure para carregar** (mais dano e velocidade; carga alta atravessa).
+- **Anel:** magia teleguiada. A gema (1/2/3) define o efeito: Fogo explode, Gelo perfura e deixa lento,
+  Raio dispara 3 e destrói tiros roxos.
+- **Rolamento:** invulnerável no começo, cancela qualquer ataque e atravessa inimigos. Rolar por dentro de
+  um ataque é **esquiva perfeita** (câmera lenta + energia); rolar por dentro de um inimigo o deixa de costas
+  por um instante: atacar pelas costas causa **golpe crítico**.
+- **Sem dano por encostar:** só ataques machucam. Soldados e magos mostram um brilho antes de atacar; um
+  golpe forte durante o brilho **interrompe** o ataque (brutamontes e chefe têm armadura).
+- Impacto: pausa curta no golpe, empurrão, número de dano.
 
-| Herói | Estilo | Armas (1 / 2 / 3) | Golpe | Especial |
+Você escolhe uma de **3 classes** antes de começar:
+
+| Classe | Estilo | Armas | Rolamento | Habilidade |
 |---|---|---|---|---|
-| **Garibaldo** (Mago) | equilibrado, 100 de vida | Fogo (explode) · Gelo (perfura, deixa lento) · Raio (3 tiros, destrói tiros roxos) | espada espiritual | Explosão Arcana |
-| **Bruno** (Guerreiro) | tanque lento, 160 de vida; o dash machuca quem estiver no caminho | Machado (perfura) · Lança (rápida) · Tremor (onda no chão) | espadada (longo alcance, dano alto) | Terremoto |
-| **Leo** (Arqueiro) | rápido e frágil, 80 de vida, pulo duplo | Flecha · Flecha de fogo (explode) · Flecha tripla | adaga (rápida) | Chuva de Flechas |
+| **Garibaldo** (Mago) | 100 de vida; Anel com +25% de dano | Anel (J) · Espada espiritual (K) | médio | Explosão Arcana |
+| **Bruno** (Guerreiro) | tanque, 160 de vida; espada com +25% | Espadada (J) · Arco (K) | curto e pesado | Terremoto |
+| **Leo** (Arqueiro) | frágil, 80 de vida, pulo duplo; arco com +25% e adaga com crítico x2,2 | Arco (J) · Adaga (K) | longo e rápido | Chuva de Flechas |
 
 Os nomes Bruno e Leo são provisórios: troque em `src/characters.js`.
 
@@ -56,7 +70,7 @@ borda de baixo** do quadro (o jogo espelha sozinho).
 
 | Arquivo | Quadro | Quadros (índice → animação) |
 |---|---|---|
-| `garibaldo_fire.png`, `garibaldo_ice.png`, `garibaldo_bolt.png`, `warrior.png`, `archer.png` | 96x80, 7 colunas | Mago (um sheet por poder: olhos, fecho e magia mudam de cor), Guerreiro e Arqueiro. Mesmo layout nos 3: 0-3 parado · 4-5 agachado · 6-7 dano · 8-13 correndo · 14 pulo · 15 queda · 16-21 ataque à distância · 22-23 dash · 24-27 morte · 28-33 golpe corpo a corpo · 34-39 atirando na diagonal · 40-45 atirando para cima. Pés em x=36, y=79. O jogo desenha os heróis em **1,5x** (`SCALE` em `src/entities/Player.js`) e os inimigos comuns em 1,25x (`scale` em `src/config.js`). |
+| `garibaldo_fire.png`, `garibaldo_ice.png`, `garibaldo_bolt.png`, `warrior.png`, `archer.png` | 96x80, 7 colunas | Mago (um sheet por poder: olhos, fecho e magia mudam de cor), Guerreiro e Arqueiro. Mesmo layout nos 3: 0-3 parado · 4-5 agachado · 6-7 dano · 8-13 correndo · 14 pulo · 15 queda · 16-21 ataque à distância · 22-23 rolamento · 24-27 morte · 28-33 golpe corpo a corpo · 34-39 e 40-45 ataque à distância nativo na diagonal e para cima · 46-63 arco do guerreiro (horizontal, diagonal, cima). Pés em x=36, y=79. O jogo desenha os heróis em **1,5x** (`SCALE` em `src/entities/Player.js`) e os inimigos comuns em 1,25x (`scale` em `src/config.js`). |
 | `proj3.png` | 32x32, 8 colunas | 0-1 flecha · 2-3 flecha de fogo · 4 lança · 5-8 machado · 9-10 tremor · 11-16 ícones do HUD |
 | `fireball.png` | 32x32 | bola de fogo do jogador (cabeça em x=21, y=17; rastro para a esquerda) |
 | `grunt.png` | 48x48 | 0-1 parado · 2-5 andando · 6-7 atacando |
@@ -129,14 +143,14 @@ Vida, pontos e energia passam de uma fase para a outra.
 |---|---|
 | Mover | A / D ou setas |
 | Pular | Espaço ou X |
-| Atirar (segure) | J ou Z |
-| Golpe corpo a corpo | F ou H |
-| Mirar cima / diagonal | W ou seta cima (+ direção) |
-| Agachar / atirar pra baixo no ar | S ou seta baixo |
+| Arma 1 | J ou Z |
+| Arma 2 | K ou U |
+| Rolar | Shift ou C |
+| Mirar arco e anel | W ou seta cima (+ direção) |
+| Agachar | S ou seta baixo |
 | Descer da plataforma | baixo + Espaço |
-| Dash invencível | K, Shift ou C |
-| Trocar arma / poder | Q / E ou 1, 2, 3 |
-| Especial | L ou V (barra cheia) |
+| Gema do Anel | Q / E ou 1, 2, 3 |
+| Habilidade | L ou V (barra cheia) |
 | Pausar / Mudo | P / M |
 | Escolher outro herói (ao morrer ou vencer) | T |
 
@@ -144,10 +158,12 @@ Para remapear, edite `src/systems/controls.js`.
 
 ## Criar ou ajustar um herói
 
-Tudo de um personagem (vida, velocidade, armas, golpe, dash e especial) fica em `src/characters.js`.
-Cada arma tem flags simples: `pierce` (atravessa), `splash` (explode em área), `slow` (deixa lento),
-`breaks` (destrói tiros roxos), `spread` (vários tiros), `ground` (anda rente ao chão).
+- `src/characters.js`: cada classe (vida, velocidade, rolamento, quais 2 armas leva, bônus, combo da
+  espada com dano/alcance/tempo/empurrão de cada golpe, habilidade e quais quadros do sprite usar).
+- `src/weapons.js`: as armas (espada, arco, anel) e as gemas do Anel.
+- Para dar uma arma a outra classe, basta pôr o id em `weapons` (`'sword'`, `'bow'`, `'ring'`). Se a classe
+  não tiver os quadros daquela arma, usa o ataque à distância "nativo" dela (`native` em `characters.js`).
 
 Sprites: `assets/sprites/warrior.png` e `archer.png` (96x80, mesmo layout de quadros do mago) e
-`proj3.png` (flechas, machado, lança, tremor e ícones). `npm run personagens` gera os placeholders;
+`proj3.png` (flechas, ícones das armas). `npm run mago` e `npm run personagens` geram os placeholders;
 arquivos que já existem não são sobrescritos (use `-- --force`).

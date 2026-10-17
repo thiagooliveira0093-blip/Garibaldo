@@ -1,8 +1,8 @@
 // Mapeamento de teclas → ações. Troque aqui para remapear os controles.
 const MAP = {
   left: ['A', 'LEFT'], right: ['D', 'RIGHT'], up: ['W', 'UP'], down: ['S', 'DOWN'],
-  jump: ['SPACE', 'X'], shoot: ['J', 'Z'], melee: ['F', 'H'], dash: ['K', 'SHIFT', 'C'], special: ['L', 'V'],
-  prev: ['Q'], next: ['E'], p1: ['ONE'], p2: ['TWO'], p3: ['THREE'],
+  jump: ['SPACE', 'X'], attack1: ['J', 'Z'], attack2: ['K', 'U'], roll: ['SHIFT', 'C'], special: ['L', 'V'],
+  prev: ['Q'], next: ['E'], gem1: ['ONE'], gem2: ['TWO'], gem3: ['THREE'],
   pause: ['P', 'ESC'], mute: ['M'], confirm: ['ENTER', 'SPACE'], restart: ['R', 'ENTER'], switch: ['T'],
 };
 

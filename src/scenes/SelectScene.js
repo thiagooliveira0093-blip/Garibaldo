@@ -1,5 +1,6 @@
 import { GAME_W, GAME_H, LEVELS } from '../config.js';
 import { CHARACTER_LIST, variantOf } from '../characters.js';
+import { WEAPONS } from '../weapons.js';
 import Controls from '../systems/controls.js';
 import { createParallax } from '../systems/parallax.js';
 import { uiStyle } from '../systems/ui-style.js';
@@ -60,7 +61,8 @@ export default class SelectScene extends Phaser.Scene {
       this.tweens.add({ targets: c, alpha: sel ? 1 : 0.55, scale: sel ? 1.04 : 0.94, duration: instant ? 0 : 120 });
     });
     const ch = CHARACTER_LIST[this.index];
-    this.kit.setText(`Armas: ${ch.powers.map(p => p.name).join(' · ')}   |   Golpe: ${ch.melee.name}   |   Especial: ${ch.special.name}`);
+    const weapons = ch.weapons.map(id => (id === 'sword' ? ch.sword.name : WEAPONS[id].name)).join(' + ');
+    this.kit.setText(`Armas: ${weapons}   |   Habilidade: ${ch.special.name}`);
   }
 
   confirm() {

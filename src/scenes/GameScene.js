@@ -3,6 +3,7 @@ import {
   GRAZE, PERFECT_DODGE, SLOW_FACTOR,
 } from '../config.js';
 import { FRAME } from '../assets.js';
+import { BACKSTAB } from '../weapons.js';
 import Controls from '../systems/controls.js';
 import Effects from '../systems/effects.js';
 import Waves from '../systems/waves.js';
@@ -96,7 +97,7 @@ export default class GameScene extends Phaser.Scene {
     this.hpGfx = this.add.graphics().setDepth(16);
     Object.assign(this, {
       state: 'play', paused: false, score: 0, combo: 0, comboT: 0, slowT: 0, goT: 0, winT: 0,
-      bannerText: '', bannerT: 0, elapsed: 0, blasts: [], bossDeath: null, timeScale: 1,
+      bannerText: '', bannerT: 0, elapsed: 0, blasts: [], bossDeath: null, timeScale: 1, hitStopT: 0,
     });
     if (this.carry) { this.player.hp = this.carry.hp; this.score = this.carry.score; this.player.energy = this.carry.energy; }
     this.best = this.registry.get('best') || 0;
@@ -139,6 +140,7 @@ export default class GameScene extends Phaser.Scene {
     const real = Math.min(delta / 1000, 1 / 30);
     let ts = 1;
     if (this.slowT > 0) { this.slowT -= real; ts = SLOW_FACTOR; }
+    if (this.hitStopT > 0) { this.hitStopT -= real; ts = Math.min(ts, 0.04); }   // congela um instante no impacto
     this.timeScale = ts;
     this.physics.world.timeScale = 1 / ts; // no Arcade, timeScale maior = mais lento
     this.anims.globalTimeScale = ts;
@@ -219,11 +221,29 @@ export default class GameScene extends Phaser.Scene {
     sfx('boom');
   }
 
+  // magia do Anel: vira devagar na direção do inimigo mais próximo
+  steerHoming(s, dt) {
+    const { turn, range } = s.pw.homing;
+    let best = null, bd = range * range;
+    for (const e of this.enemies.getChildren()) {
+      if (e.dead || e.spawnT > 0) continue;
+      const dx = e.body.center.x - s.x, dy = e.body.center.y - s.y, d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; best = e; }
+    }
+    if (!best) return;
+    const v = s.body.velocity, speed = Math.hypot(v.x, v.y) || 1;
+    const cur = Math.atan2(v.y, v.x), want = Math.atan2(best.body.center.y - s.y, best.body.center.x - s.x);
+    const a = cur + Phaser.Math.Clamp(Phaser.Math.Angle.Wrap(want - cur), -turn * dt, turn * dt);
+    s.body.setVelocity(Math.cos(a) * speed, Math.sin(a) * speed);
+    if (!s.pw.spin) s.setRotation(a);
+  }
+
   updateShots(dt) {
     const camL = this.camX - 120, camR = this.camX + GAME_W + 120;
 
     for (const s of this.pShots.getChildren().slice()) {
       s.life -= dt;
+      if (s.pw.homing) this.steerHoming(s, dt);
       if (s.pw.trail && Math.random() < 0.5) this.fx.trail(s.x, s.y, s.pw.trail);
       const gy = this.groundAt(s.x);
       if (s.y > gy) { this.fx.burst(s.x, gy, s.pw.color, 5, 120); s.destroy(); continue; }
@@ -309,9 +329,14 @@ export default class GameScene extends Phaser.Scene {
 
   onShotHitEnemy(s, e) {
     if (!s.active || e.dead || e.spawnT > 0 || s.hits.has(e)) return;
-    const pw = s.pw;
+    const pw = s.pw, vx = s.body.velocity.x;
     sfx('hit');
-    this.damageEnemy(e, pw.dmg);
+    const arrow = pw.kind === 'arrow';
+    this.damageEnemy(e, pw.dmg, {
+      crit: arrow && vx * e.facing > 0,                      // flecha nas costas
+      stun: arrow && pw.pierce ? 0.25 : 0, knock: Math.sign(vx) * 140,
+      hitStop: arrow && pw.pierce ? 0.05 : 0,
+    });
     if (pw.slow) e.slowT = ICE_SLOW.time;
     if (pw.splash) { // explode em área e some
       for (const o of this.enemies.getChildren().slice()) {
@@ -342,12 +367,28 @@ export default class GameScene extends Phaser.Scene {
   // ======================================================== INIMIGOS
   spawnEnemy(sp) { createEnemy(this, sp); }
 
-  damageEnemy(e, dmg) {
+  // opts: crit (golpe pelas costas, multiplica por critMul), stun (segundos atordoado),
+  // knock (empurrão horizontal), hitStop (segundos de congelamento no impacto)
+  damageEnemy(e, dmg, opts = {}) {
     if (e.dead) return;
+    if (opts.crit) dmg *= opts.critMul || BACKSTAB;
     e.hp -= dmg;
     e.flashHit();
     this.player.energy = Math.min(100, this.player.energy + 1.5);
+    this.fx.damageNumber(e.body.center.x, e.y - e.body.height - 6, dmg, !!opts.crit);
+    if (opts.stun && !e.def.armor) e.stagger(opts.stun, opts.knock || 0);
+    if (opts.hitStop) this.hitStopT = Math.max(this.hitStopT, opts.hitStop);
     if (e.hp <= 0) this.killEnemy(e);
+  }
+
+  // Rolar por dentro de um inimigo o deixa de costas por um instante (golpe crítico)
+  rollThrough(p) {
+    const hb = p.hurtbox();
+    for (const e of this.enemies.getChildren()) {
+      if (e.dead || e.spawnT > 0 || e.turnLock > 0.3 || !Intersects.RectangleToRectangle(hb, e.bodyRect())) continue;
+      e.turnLock = 1.1; e.lockFacing = e.facing;
+      this.fx.floater(e.x, e.y - e.body.height - 18, '!', '#ffe27a');
+    }
   }
 
   killEnemy(e) {
@@ -402,6 +443,14 @@ export default class GameScene extends Phaser.Scene {
       const w = e.body.width, x = e.x - w / 2, y = e.y - e.body.height - 10;
       g.fillStyle(0x000000, 0.6).fillRect(x, y, w, 4);
       g.fillStyle(0xff4d6d).fillRect(x, y, w * Phaser.Math.Clamp(e.hp / e.maxHp, 0, 1), 4);
+    }
+    // barra de carga do arco, acima da cabeça: fica branca quando a flecha vai atravessar
+    const p = this.player;
+    if (p.alive && p.chargeSlot >= 0) {
+      const w = p.weapons[p.chargeSlot], f = Phaser.Math.Clamp(p.charge / w.maxCharge, 0, 1);
+      const bx = p.x - 20, by = p.y - p.body.height - 16;
+      g.fillStyle(0x000000, 0.65).fillRect(bx - 1, by - 1, 42, 8);
+      g.fillStyle(f >= w.pierceAt ? 0xffffff : 0xffd24a).fillRect(bx, by, 40 * f, 6);
     }
   }
 
@@ -458,50 +507,42 @@ export default class GameScene extends Phaser.Scene {
     sfx('dodge');
   }
 
-  // Golpe corpo a corpo (espada espiritual, espadada ou adaga): acerta quem está à frente
-  // e destrói tiros pequenos (arriscado, mas recompensa com energia).
-  meleeStrike(p) {
-    const S = p.scaleX, m = p.char.melee, pw = p.weapon, w = m.reach * S, h = m.height * S; // o alcance acompanha o tamanho do herói
+  // Golpe de espada (um passo do combo): acerta quem está à frente, empurra e atordoa; atacar
+  // pelas costas é crítico. Também destrói tiros pequenos (arriscado, mas recompensa com energia).
+  meleeStrike(p, st, step) {
+    const S = p.scaleX, m = p.char.sword, w = st.reach * S, h = st.height * S;   // o alcance acompanha o tamanho do herói
     const box = new Rectangle(p.facing > 0 ? p.x - 6 * S : p.x - w + 6 * S, p.y - h - 4, w, h);
+    const gem = p.gemData, color = p.char.variantByGem ? gem.color : 0xffffff;
     let hits = 0;
     for (const e of this.enemies.getChildren().slice()) {
       if (e.dead || e.spawnT > 0 || !Intersects.RectangleToRectangle(box, e.bodyRect())) continue;
       hits++;
       const c = e.body.center;
-      this.damageEnemy(e, e.kind === 'boss' ? m.bossDmg : m.dmg);
+      this.damageEnemy(e, st.dmg * p.bonus('sword'), {
+        crit: (e.x - p.x) * e.facing > 0, critMul: m.backstab,    // jogador atrás do inimigo
+        stun: st.stun, knock: p.facing * st.knock, hitStop: st.finisher ? 0.11 : 0.06,
+      });
       p.energy = Math.min(100, p.energy + m.energy);
-      if (pw.slow) e.slowT = ICE_SLOW.time;
-      this.fx.burst(c.x, c.y, pw.color, 10, 240, 100, 400);
+      if (gem.slow && p.char.variantByGem) e.slowT = ICE_SLOW.time;   // espada do mago com a gema de Gelo
+      this.fx.burst(c.x, c.y, color, st.finisher ? 16 : 10, 240, 100, 400);
     }
     for (const s of this.eShots.getChildren().slice()) {
       if (!s.visible || !m.breaks.includes(s.kind)) continue;
       if (!Intersects.CircleToRectangle(new Circle(s.x, s.y, s.radius), box)) continue;
       hits++;
-      this.fx.burst(s.x, s.y, pw.color, 6, 180, 0, 350);
+      this.fx.burst(s.x, s.y, color, 6, 180, 0, 350);
       p.energy = Math.min(100, p.energy + 2);
       this.score += 10;
       s.destroy();
     }
-    if (hits) { this.fx.shake(4); sfx('hit'); }
-  }
-
-  // Investida do dash (guerreiro): machuca cada inimigo que encostar, uma vez por dash
-  dashStrike(p) {
-    const hb = p.hurtbox();
-    for (const e of this.enemies.getChildren().slice()) {
-      if (e.dead || e.spawnT > 0 || p.dashHits.has(e) || !Intersects.RectangleToRectangle(hb, e.bodyRect())) continue;
-      p.dashHits.add(e);
-      this.damageEnemy(e, p.char.dash.hitDmg);
-      this.fx.burst(e.body.center.x, e.body.center.y, 0xcfd8e6, 10, 240, 100, 400);
-      this.fx.shake(6);
-      sfx('hit');
-    }
+    if (hits) { this.fx.shake(st.finisher ? 9 : 4); sfx('hit'); }
+    else if (st.finisher) this.fx.shake(2);
   }
 
   // Especial do personagem: limpa todos os tiros inimigos e causa dano em tudo na tela.
   // O efeito visual muda: portal arcano (mago), terremoto (guerreiro), chuva de flechas (arqueiro).
   special() {
-    const p = this.player, sp = p.char.special, color = p.weapon.color;
+    const p = this.player, sp = p.char.special, color = p.gemData.color;
     p.energy = 0;
     if (sp.kind === 'arcane') {
       this.fx.ring(p.x, p.y - 24, 0xe3b8ff);
